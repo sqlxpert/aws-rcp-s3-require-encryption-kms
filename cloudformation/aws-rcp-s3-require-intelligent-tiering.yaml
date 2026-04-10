@@ -1,0 +1,376 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: |-
+  Resource control policy requiring KMS encryption for tagged S3 buckets
+  github.com/sqlxpert/aws-rcp-s3-require-encryption-kms
+  GPLv3, Copyright Paul Marcelin
+
+Parameters:
+
+  PlaceholderSuggestedStackName:
+    Type: String
+    Description: >-
+      The stack name will be appended to the resource and service control
+      policy names.
+      If you have also installed the Terraform module equivalent
+      to this CloudFormation template, the stack name must differ from
+      rcp_scp_name_suffix for all instances of the Terraform module.
+    Default: "S3RequireEncryptionKms"
+
+  PlaceholderHelp:
+    Type: String
+    Default: "github.com/sqlxpert/aws-rcp-s3-require-encryption-kms"
+
+  EnableRcp:
+    Type: String
+    Description: >-
+      Whether to apply the resource control policy to its designated targets.
+      The default is true . Change this to false to detach the RCP but preserve
+      the list of its targets.
+    Default: "true"
+    AllowedValues:
+      - "false"
+      - "true"
+
+  RcpTargetIds:
+    Type: List<String>
+    Description: >-
+      Up to 100 r- root ID strings, ou- organizational unit ID strings, and/or
+      AWS account ID numbers to which the RCP will apply. Separate multiple
+      targets with commas but no spaces. To view the RCP before applying it,
+      leave this empty (the default), or start with EnableRcp set to false .
+      Exercise caution when applying any RCP, but note that this RCP generally
+      does not affect pre-existing S3 buckets; it only affects S3 buckets with
+      the designated tag.
+    Default: ""
+
+  PlaceholderAdvancedParameters:
+    Type: String
+    Default: ""
+    AllowedValues:
+      - ""
+
+  S3BucketTagKey:
+    Type: String
+    Description: >-
+      S3 bucket tag key for requiring KMS encryption.
+      To activate, make sure that the AWS account is subject to the RCP, tag
+      the bucket, and enable attribute-based access control for the bucket.
+      (1) The tag's value must be a partial ARN of the form "ACCOUNT:key/ID" or
+      "ACCOUNT:key/mrk-ID"; (2) the specified KMS key, multi-region key
+      primary, or a multi-region key replica must exist in the same region as
+      the bucket; and (3) users' permissions and/or the KMS key policy must
+      allow usage of the key to encrypt S3 objects. Users must specify
+      "aws:kms" encryption, and the full KMS key ARN, when creating objects.
+      If the bucket is the destination of a replication rule, the rule's
+      ReplicaKmsKeyID value and the tag's value must reference the same key.
+      Customer-managed KMS keys are recommended. Consider creating keys in a
+      central account, and using multi-region keys.
+      For bucket tag rules, see
+      https://docs.aws.amazon.com/AmazonS3/latest/userguide/tagging.html#tag-key
+      . For ABAC, see
+      https://docs.aws.amazon.com/AmazonS3/latest/userguide/buckets-tagging-enable-abac.html
+      . For S3 KMS key permissions, see
+      https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingKMSEncryption.html#:~:text=Permissions
+    Default: "security-s3-require-encryption-kms-key-partial-arn"
+
+  EnableScp:
+    Type: String
+    Description: >-
+      Whether to apply the service control policy (if generated) to its
+      designated targets. The default is true . Change this to false to detach
+      the SCP but preserve the list of its targets.
+    Default: "true"
+    AllowedValues:
+      - "false"
+      - "true"
+
+  ScpTargetIds:
+    Type: List<String>
+    Description: >-
+      Up to 100 r- root ID strings, ou- organizational unit ID strings, and/or
+      AWS account ID numbers to which the SCP (if generated) will apply.
+      Separate multiple targets with commas but no spaces.
+      You may wish to apply the SCP, which restricts S3 bucket tag and ABAC
+      changes, before applying the RCP, which actually enforces encryption. In
+      some organizational units, you might apply the RCP but not the SCP, to
+      leave users in control of the ABAC setting and the bucket tag.
+      To view the SCP before applying it, leave this empty (the default), or
+      start with EnableScp set to false .
+      Exercise caution when applying this SCP, because it generally does reduce
+      existing permissions.
+    Default: ""
+
+  ScpPrincipalCondition:
+    Type: String
+    Description: >-
+      One or more condition expressions determining which roles (or other IAM
+      principals) are not allowed to set/change/remove the designated S3 bucket
+      tag or enable/disable ABAC, for buckets in AWS accounts subject to the
+      SCP. Separate multiple expressions with commas.
+      The default,
+      '"ArnNotLike": { "aws:PrincipalArn": "arn:aws:iam::*:role/manage-s3" }',
+      means that a request to change ABAC or the designated tag will be denied
+      if it is not made by the manage-s3 role. (Separately, you would have to
+      create the manage-s3 role and attach an IAM policy allowing the role to
+      read and change S3 bucket tags and ABAC.)
+      To avoid generating the SCP, leave this blank.
+      "ForAnyValue:StringEquals" is forbidden; to use this condition operator,
+      write a custom policy.
+      For condition operators, see
+      https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements_condition_operators.html
+      . For condition keys, see
+      https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_condition-keys.html#condition-keys-principal-properties
+    Default: '"ArnNotLike": { "aws:PrincipalArn": "arn:aws:iam::*:role/manage-s3" }'
+    AllowedPattern: '^(?!.*"ForAnyValue:StringEquals").*$'
+    ConstraintDescription: >-
+      "ForAnyValue:StringEquals" is forbidden. To use this condition operator,
+      write a custom policy.
+
+Metadata:
+
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: For Reference
+        Parameters:
+          - PlaceholderSuggestedStackName
+          - PlaceholderHelp
+      - Label:
+          default: Essential
+        Parameters:
+          - EnableRcp
+          - RcpTargetIds
+      - Label:
+          default: Advanced...
+        Parameters:
+          - PlaceholderAdvancedParameters
+      - Label:
+          default: >-
+            Resource control policy (require KMS encryption for tagged S3 buckets)
+        Parameters:
+          - S3BucketTagKey
+      - Label:
+          default: >-
+            Service control policy (restrict S3 bucket tag and ABAC changes)
+        Parameters:
+          - EnableScp
+          - ScpTargetIds
+          - ScpPrincipalCondition
+    ParameterLabels:
+      PlaceholderSuggestedStackName:
+        default: Suggested stack name
+      PlaceholderHelp:
+        default: For help with this stack, see
+      EnableRcp:
+        default: Enable RCP?
+      RcpTargetIds:
+        default: RCP root IDs, OU IDs, and/or AWS account ID numbers
+      PlaceholderAdvancedParameters:
+        default: Do not change the parameters below unless necessary!
+      S3BucketTagKey:
+        default: Bucket tag designating KMS key required for new objects
+      EnableScp:
+        default: Enable SCP?
+      ScpTargetIds:
+        default: SCP root IDs, OU IDs, and/or AWS account ID numbers
+      ScpPrincipalCondition:
+        default: Condition for roles not allowed to change S3 bucket tag, ABAC
+
+Conditions:
+
+  EnableRcpTrue: !And
+    - !Equals [ !Ref EnableRcp, "true" ]
+    - !Not [ !Equals [ !Join [ "", !Ref RcpTargetIds ], "" ] ]
+
+  ScpPrincipalConditionNotBlank:
+    !Not [ !Equals [ !Ref ScpPrincipalCondition, "" ] ]
+
+  EnableScpTrue: !And
+    - !Condition ScpPrincipalConditionNotBlank
+    - !Equals [ !Ref EnableScp, "true" ]
+    - !Not [ !Equals [ !Join [ "", !Ref ScpTargetIds ], "" ] ]
+
+Resources:
+
+  RcpS3BucketRequireEncryption:
+    Type: AWS::Organizations::Policy
+    Properties:
+      Type: RESOURCE_CONTROL_POLICY
+      Name: !Ref AWS::StackName
+      Tags:
+        - Key: StackName  # No automatic CloudFormation tags, as of 2026-03
+          Value: !Ref AWS::StackName
+        - Key: Source
+          Value: "github.com/sqlxpert/aws-rcp-s3-require-encryption-kms"
+        - Key: Rights
+          Value: "GPLv3. Copyright Paul Marcelin."
+      Description: !Sub >-
+        S3 bucket with ABAC enabled, tagged '${S3BucketTagKey}': Require that
+        all new objects be encrypted with the KMS key specified in the tag
+        value, and forbid disabling ABAC.
+        GPLv3, Copyright Paul Marcelin. github.com/sqlxpert
+      TargetIds: !If [ EnableRcpTrue, !Ref RcpTargetIds, !Ref AWS::NoValue ]
+      Content: !Sub
+        - >-
+          {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Sid": "NoWildcardOrVariable"
+                "Effect": "Deny",
+                "Principal": "*",
+                "Action": "s3:PutObject",
+                "Resource": "*",
+                "Condition": {
+                  "Null": {
+                    "s3:BucketTag/${S3BucketTagKey}": "false"
+                  },
+                  "StringNotLike": {
+                    "s3:BucketTag/${S3BucketTagKey}": [
+                      "*${!*}*",
+                      "*${!?}*",
+                      "*$*",
+                      "*{*",
+                      "*}*"
+                    ]
+                  }
+                }
+              },
+              {
+                "Sid": "PartialArnFormat"
+                "Effect": "Deny",
+                "Principal": "*",
+                "Action": "s3:PutObject",
+                "Resource": "*",
+                "Condition": {
+                  "Null": {
+                    "s3:BucketTag/${S3BucketTagKey}": "false"
+                  },
+                  "StringNotLike": {
+                    "s3:BucketTag/${S3BucketTagKey}": [
+                      "????????????:key/????????-????-????-????-????????????",
+                      "????????????:key/mrk-????????????????????????????????"
+                    ]
+                  }
+                }
+              },
+              {
+                "Sid": "KmsKeyInRequestMatches"
+                "Effect": "Deny",
+                "Principal": "*",
+                "Action": "s3:PutObject",
+                "Resource": "*",
+                "Condition": {
+                  "Null": {
+                    "s3:BucketTag/${S3BucketTagKey}": "false"
+                  },
+                  "StringNotLike": {
+                    "s3:x-amz-server-side-encryption-aws-kms-key-id": "arn:${AWS::Partition}:kms:*:${S3BucketTagValueIamPolicyVariable}"
+                  }
+                }
+              },
+              {
+                "Sid": "CannotDisableAbac",
+                "Effect": "Deny",
+                "Principal": "*",
+                "Action": "s3:PutBucketAbac",
+                "Resource": "*",
+                "Condition": {
+                  "Null": {
+                    "s3:BucketTag/${S3BucketTagKey}": "false"
+                  }
+                }
+              }
+            ]
+          }
+        - S3BucketTagValueIamPolicyVariable:
+            !Join [ "", [ "${s3:BucketTag/", !Ref S3BucketTagKey, "}" ] ]
+            # https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_variables.html
+
+  ScpS3BucketRestrictTagAndAbacChanges:
+    Type: AWS::Organizations::Policy
+    Condition: ScpPrincipalConditionNotBlank
+    Properties:
+      Type: SERVICE_CONTROL_POLICY
+      Name: !Sub "S3BucketRestrictTagAndAbacChanges-${AWS::StackName}"
+      Tags:
+        - Key: StackName  # No automatic CloudFormation tags, as of 2026-03
+          Value: !Ref AWS::StackName
+        - Key: Source
+          Value: "github.com/sqlxpert/aws-rcp-s3-require-encryption-kms"
+        - Key: Rights
+          Value: "GPLv3. Copyright Paul Marcelin."
+      Description: !Sub >-
+        S3 bucket: Matching IAM principals cannot enable/disable ABAC. If ABAC
+        is enabled, they cannot add/change/remove '${S3BucketTagKey}' bucket
+        tag.
+        GPLv3, Copyright Paul Marcelin. github.com/sqlxpert
+      TargetIds: !If [ EnableScpTrue, !Ref ScpTargetIds, !Ref AWS::NoValue ]
+      Content: !Sub
+        - >-
+          {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Deny",
+                "Action": "s3:PutBucketAbac",
+                "Resource": "*",
+                "Condition": {
+                  ${ScpPrincipalCondition}
+                }
+              },
+              {
+                "Effect": "Deny",
+                "Action": [
+                  "s3:TagResource",
+                  "s3:UntagResource"
+                ],
+                "Resource": "*",
+                "Condition": {
+                  ${ScpPrincipalCondition}${CommaAfterScpPrincipalCondition}
+                  "ForAnyValue:StringEquals": {
+                    "aws:TagKeys": "${S3BucketTagKey}"
+                  }
+                }
+              }
+            ]
+          }
+        - CommaAfterScpPrincipalCondition:
+            !If [ ScpPrincipalConditionNotBlank, ",", "" ]
+            # cfn-lint W1028: false can indeed never occur, because !If
+            # references the same condition that determines whether the
+            # resource is created (see Condition: above). Nevertheless, I want
+            # the Content property to contain valid JSON at all times, because
+            # some systems check syntax early.
+    Metadata:
+      cfn-lint: { config: { ignore_checks: [ W1028 ] } }
+
+Outputs:
+
+  RcpS3BucketRequireEncryptionArn:
+    Description: >-
+      ARN of resource control policy requiring KMS encryption for tagged S3 buckets
+    Value: !GetAtt RcpS3BucketRequireEncryption.Arn
+  RcpS3BucketRequireEncryptionId:
+    Description: >-
+      Physical identifier of resource control policy
+    Value: !GetAtt RcpS3BucketRequireEncryption.Id
+
+  ScpS3BucketRestrictTagAndAbacChangesArn:
+    Description: >-
+      ARN of service control policy restricting S3 bucket tag and ABAC changes.
+      Empty string if SCP has not been generated.
+    Value: !If
+      - ScpPrincipalConditionNotBlank
+      - !GetAtt ScpS3BucketRestrictTagAndAbacChanges.Arn
+      - ""
+  ScpS3BucketRestrictTagAndAbacChangesId:
+    Description: >-
+      Physical identifier of service control policy.
+      Empty string if SCP has not been generated.
+    Value: !If
+      - ScpPrincipalConditionNotBlank
+      - !GetAtt ScpS3BucketRestrictTagAndAbacChanges.Id
+      - ""

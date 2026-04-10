@@ -51,6 +51,7 @@ resource "aws_organizations_policy" "rcp_s3_bucket_require_encryption" {
                 "*{*",
                 "*}*",
                 "*\\*",
+                "*%*",
                 "*=*",
                 "*+*",
                 "*@*"

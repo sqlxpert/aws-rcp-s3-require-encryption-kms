@@ -1,7 +1,7 @@
 # Different S3 Buckets, Different KMS Encryption Keys
 
 Do you maintain a separate bucket policy for every encrypted S3 bucket, or a
-separate resource control policy for every KMS key used with S3?
+separate resource control policy for every KMS key you use with S3?
 
 &#128161; I've devised **a practical way to enforce KMS encryption**...in one
 bucket or thousands...in one region or many...in one account or many...with one

@@ -198,7 +198,7 @@ Resources:
     Type: AWS::Organizations::Policy
     Properties:
       Type: RESOURCE_CONTROL_POLICY
-      Name: !Ref AWS::StackName
+      Name: !Sub "S3Bucket-${AWS::StackName}"
       Tags:
         - Key: StackName  # No automatic CloudFormation tags, as of 2026-03
           Value: !Ref AWS::StackName
@@ -218,7 +218,7 @@ Resources:
             "Version": "2012-10-17",
             "Statement": [
               {
-                "Sid": "NoWildcardOrVariable"
+                "Sid": "NoWildcardOrVariable",
                 "Effect": "Deny",
                 "Principal": "*",
                 "Action": "s3:PutObject",
@@ -239,7 +239,7 @@ Resources:
                 }
               },
               {
-                "Sid": "PartialArnFormat"
+                "Sid": "PartialArnFormat",
                 "Effect": "Deny",
                 "Principal": "*",
                 "Action": "s3:PutObject",
@@ -257,7 +257,7 @@ Resources:
                 }
               },
               {
-                "Sid": "KmsKeyInRequestMatches"
+                "Sid": "KmsKeyInRequestMatches",
                 "Effect": "Deny",
                 "Principal": "*",
                 "Action": "s3:PutObject",

@@ -1,5 +1,5 @@
 # Resource control policy requiring KMS encryption for tagged S3 buckets
-# github.com/sqlxpert/aws-rcp-s3-require-intelligent-tiering
+# github.com/sqlxpert/aws-rcp-s3-require-encryption-kms
 # GPLv3, Copyright Paul Marcelin
 
 plugin "aws" {

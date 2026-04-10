@@ -216,6 +216,8 @@ Resources:
       # "NoWildcardOrVariable" statement: Most of these special characters are
       # not currently (2026-04) allowed in S3 tag values, but I am excluding
       # them to be conservative.
+      # https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_variables.html#policy-vars-specialchars
+      # https://datatracker.ietf.org/doc/html/rfc7159#section-7
       # https://docs.aws.amazon.com/AmazonS3/latest/userguide/tagging.html#tag-value
       # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html#tag-restrictions
       Content: !Sub
@@ -237,7 +239,7 @@ Resources:
                     "s3:BucketTag/${S3BucketTagKey}": [
                       "*${!*}*",
                       "*${!?}*",
-                      "*$*",
+                      "*${!$}*",
                       "*{*",
                       "*}*",
                       "*\\*",

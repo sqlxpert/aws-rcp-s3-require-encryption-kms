@@ -47,7 +47,7 @@ resource "aws_organizations_policy" "rcp_s3_bucket_require_encryption" {
               "s3:BucketTag/${var.s3_bucket_tag_key}": [
                 "*$${*}*",
                 "*$${?}*",
-                "*$*",
+                "*$${$}*",
                 "*{*",
                 "*}*",
                 "*\\*",

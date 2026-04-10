@@ -212,6 +212,12 @@ Resources:
         value, and forbid disabling ABAC.
         GPLv3, Copyright Paul Marcelin. github.com/sqlxpert
       TargetIds: !If [ EnableRcpTrue, !Ref RcpTargetIds, !Ref AWS::NoValue ]
+
+      # "NoWildcardOrVariable" statement: Most of these special characters are
+      # not currently (2026-04) allowed in S3 tag values, but I am excluding
+      # them to be conservative.
+      # https://docs.aws.amazon.com/AmazonS3/latest/userguide/tagging.html#tag-value
+      # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html#tag-restrictions
       Content: !Sub
         - >-
           {
@@ -233,7 +239,11 @@ Resources:
                       "*${!?}*",
                       "*$*",
                       "*{*",
-                      "*}*"
+                      "*}*",
+                      "*\\*",
+                      "*=*",
+                      "*+*",
+                      "*@*"
                     ]
                   }
                 }

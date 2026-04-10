@@ -143,7 +143,7 @@ resource "aws_organizations_policy" "scp_s3_bucket_restrict_tag_and_abac_changes
           "Action": "s3:PutBucketAbac",
           "Resource": "*",
           "Condition": {
-            ${ScpPrincipalCondition}
+            ${var.scp_principal_condition}
           }
         },
         {
@@ -154,7 +154,7 @@ resource "aws_organizations_policy" "scp_s3_bucket_restrict_tag_and_abac_changes
           ],
           "Resource": "*",
           "Condition": {
-            ${ScpPrincipalCondition}${local.comma_after_scp_principal_condition}
+            ${var.scp_principal_condition}${local.comma_after_scp_principal_condition}
             "ForAnyValue:StringEquals": {
               "aws:TagKeys": "${var.s3_bucket_tag_key}"
             }

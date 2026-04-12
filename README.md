@@ -213,10 +213,10 @@ with an explicit deny in a resource control policy
       terraform apply
       ```
 
- 4. Test the RCP as explained below, in
+ 4. <a id="install-step-5-context"></a>Test the RCP as explained below, in
     [Test](#test).
 
- 5. <a id="install-step-5"></a>Add other AWS account numbers, `ou-`
+ 5. Add other AWS account numbers, `ou-`
     organizational unit IDs, or the `r-` root ID to apply the RCP broadly.
 
 ## Test
@@ -247,6 +247,7 @@ with an explicit deny in a resource control policy
     AWS_ACCT=$( aws sts get-caller-identity --query 'Account' --output text )
     read -p 'S3 bucket     : ' \
       -e -i "deletable-acct-${AWS_ACCT}-ts-${TIMESTAMP}" -r S3_BUCKET_NAME
+
     ```
 
  3. Create the bucket.
@@ -269,6 +270,7 @@ with an explicit deny in a resource control policy
     ```shell
     read -p 'Bucket tag key: ' \
       -e -i 'security-s3-require-encryption-kms-key-arn' -r S3_BUCKET_TAG_KEY
+
     ```
 
  6. Get the ID of the AWS-managed KMS key. (&nbsp;`list-aliases` returns KMS
@@ -283,6 +285,7 @@ with an explicit deny in a resource control policy
         --output 'text' \
     )
     read -p 'KMS key ID    : ' -e -i "${KMS_KEY_ID}" -r KMS_KEY_ID
+
     ```
 
  7. Tag the bucket.
@@ -324,7 +327,7 @@ with an explicit deny in a resource control policy
     ```
 
     Continue with
-    [Step 5 of the _installation_ instructions](#install-step-5).
+    [Step 5 of the _installation_ instructions](#install-step-5-context).
 
 </details>
 

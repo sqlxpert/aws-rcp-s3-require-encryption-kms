@@ -114,8 +114,8 @@ PutObject request or in the S3 bucket's default encryption configuration.
 
 #### Non-Encrypted Object
 
-Users who try create non-encrypted S3 objects get an "AccessDenied" error. In
-case a user misses the "require-encryption-kms-key-arn"... in the bucket tag
+Users who try to create non-encrypted S3 objects get an "AccessDenied" error.
+In case a user misses the "require-encryption-kms-key-arn"... in the bucket tag
 key, or doesn't check the tag's value to find out the correct key to use, the
 error message tells an administrator where to look for guidance: "explicit deny
 in a resource control policy".

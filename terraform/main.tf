@@ -24,7 +24,7 @@ resource "aws_organizations_policy" "rcp_s3_bucket_require_encryption" {
   description = "S3 bucket with ABAC enabled, tagged '${var.s3_bucket_tag_key}': Require that all new objects be encrypted with the KMS key specified in the tag value, and forbid disabling ABAC. GPLv3, Copyright Paul Marcelin. github.com/sqlxpert"
   tags        = local.rcp_scp_tags
 
-  # See "NoWildcardOrVariable" comment in
+  # See "WildcardSpecialCharacterOrVariable" comment in
   # ../cloudformation/aws-rcp-s3-require-encryption-kms.yaml
 
   # I prefer data.aws_iam_policy_document , but a HEREDOC allows source parity
@@ -34,16 +34,13 @@ resource "aws_organizations_policy" "rcp_s3_bucket_require_encryption" {
       "Version": "2012-10-17",
       "Statement": [
         {
-          "Sid": "NoWildcardOrVariable",
+          "Sid": "WildcardSpecialCharacterOrVariable",
           "Effect": "Deny",
           "Principal": "*",
           "Action": "s3:PutObject",
           "Resource": "*",
           "Condition": {
-            "Null": {
-              "s3:BucketTag/${var.s3_bucket_tag_key}": "false"
-            },
-            "StringNotLike": {
+            "StringLike": {
               "s3:BucketTag/${var.s3_bucket_tag_key}": [
                 "*$${*}*",
                 "*$${?}*",
@@ -52,6 +49,8 @@ resource "aws_organizations_policy" "rcp_s3_bucket_require_encryption" {
                 "*}*",
                 "*\\*",
                 "*%*",
+                "*!*",
+                "*\"*",
                 "*=*",
                 "*+*",
                 "*@*"
@@ -60,7 +59,7 @@ resource "aws_organizations_policy" "rcp_s3_bucket_require_encryption" {
           }
         },
         {
-          "Sid": "PartialArnFormat",
+          "Sid": "Format",
           "Effect": "Deny",
           "Principal": "*",
           "Action": "s3:PutObject",
@@ -71,14 +70,18 @@ resource "aws_organizations_policy" "rcp_s3_bucket_require_encryption" {
             },
             "StringNotLike": {
               "s3:BucketTag/${var.s3_bucket_tag_key}": [
+                "arn:${local.partition}:kms:*:key/????????-????-????-????-????????????",
+                "arn:${local.partition}:kms:*:key/mrk-????????????????????????????????",
                 "????????????:key/????????-????-????-????-????????????",
-                "????????????:key/mrk-????????????????????????????????"
+                "????????????:key/mrk-????????????????????????????????",
+                "????????-????-????-????-????????????",
+                "mrk-????????????????????????????????"
               ]
             }
           }
         },
         {
-          "Sid": "KmsKeyInRequestMatches",
+          "Sid": "KmsDualLayerEncryption",
           "Effect": "Deny",
           "Principal": "*",
           "Action": "s3:PutObject",
@@ -87,13 +90,67 @@ resource "aws_organizations_policy" "rcp_s3_bucket_require_encryption" {
             "Null": {
               "s3:BucketTag/${var.s3_bucket_tag_key}": "false"
             },
+            "StringEquals": {
+              "s3:x-amz-server-side-encryption": "aws:kms:dsse"
+            }
+          }
+        },
+        {
+          "Sid": "KmsKeyFullArnSpanningMultipleArnFieldsRequiresStringOperator",
+          "Effect": "Deny",
+          "Principal": "*",
+          "Action": "s3:PutObject",
+          "Resource": "*",
+          "Condition": {
+            "StringLike": {
+              "s3:BucketTag/${var.s3_bucket_tag_key}": [
+                "arn:${local.partition}:kms:*:key/????????-????-????-????-????????????",
+                "arn:${local.partition}:kms:*:key/mrk-????????????????????????????????"
+              ]
+            },
+            "StringNotEquals": {
+              "s3:x-amz-server-side-encryption-aws-kms-key-id": "${local.s3_bucket_tag_value_iam_policy_variable}"
+            }
+          }
+        },
+        {
+          "Sid": "KmsKeyPartialArnNoteSpanningMultipleArnFieldsRequiresStringOperator",
+          "Effect": "Deny",
+          "Principal": "*",
+          "Action": "s3:PutObject",
+          "Resource": "*",
+          "Condition": {
+            "StringLike": {
+              "s3:BucketTag/${var.s3_bucket_tag_key}": [
+                "????????????:key/????????-????-????-????-????????????",
+                "????????????:key/mrk-????????????????????????????????"
+              ]
+            },
             "StringNotLike": {
               "s3:x-amz-server-side-encryption-aws-kms-key-id": "arn:${local.partition}:kms:*:${local.s3_bucket_tag_value_iam_policy_variable}"
             }
           }
         },
         {
-          "Sid": "CannotDisableAbac",
+          "Sid": "KmsKeyIdNoteKmsKeyAccountIsS3BucketAccount",
+          "Effect": "Deny",
+          "Principal": "*",
+          "Action": "s3:PutObject",
+          "Resource": "*",
+          "Condition": {
+            "StringLike": {
+              "s3:BucketTag/${var.s3_bucket_tag_key}": [
+                "????????-????-????-????-????????????",
+                "mrk-????????????????????????????????"
+              ]
+            },
+            "ArnNotLike": {
+              "s3:x-amz-server-side-encryption-aws-kms-key-id": "arn:${local.partition}:kms:*:$${aws:ResourceAccount}:key/${local.s3_bucket_tag_value_iam_policy_variable}"
+            }
+          }
+        },
+        {
+          "Sid": "DisableAbacIfEnabled",
           "Effect": "Deny",
           "Principal": "*",
           "Action": "s3:PutBucketAbac",

@@ -17,16 +17,10 @@ Parameters:
       to this CloudFormation template, the stack name must differ from
       rcp_scp_name_suffix for all instances of the Terraform module.
     Default: "S3RequireEncryptionKms"
-    AllowedPattern: '^S3RequireEncryptionKms$'
-    ConstraintDescription: >-
-      Read-only reference value. Do not change.
 
   PlaceholderHelp:
     Type: String
     Default: "github.com/sqlxpert/aws-rcp-s3-require-encryption-kms"
-    AllowedPattern: '^github\.com/sqlxpert/aws-rcp-s3-require-encryption-kms$'
-    ConstraintDescription: >-
-      Read-only reference value. Do not change.
 
   EnableRcp:
     Type: String
@@ -69,7 +63,7 @@ Parameters:
       https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingKMSEncryption.html#:~:text=Permissions
       .
       To require encryption, make sure that the AWS account is subject to the
-      RCP, tag the bucket, and enable ABAC for the bucket.
+      RCP, enable ABAC for the bucket, and tag the bucket.
       Tag value: KMS key ARN, partial ARN (ACCOUNT:key/ID), or ID.
       The KMS key, multi-region key primary, or replica must be in the same
       region as the bucket. It must also be in the same AWS account, unless the
@@ -214,26 +208,71 @@ Resources:
         - Key: Rights
           Value: "GPLv3. Copyright Paul Marcelin."
       Description: !Sub >-
-        S3 bucket with ABAC enabled, tagged '${S3BucketTagKey}': Require that
-        all new objects be encrypted with KMS key specified in tag value,
-        forbid KMS dual-layer encryption, forbid disabling ABAC.
+        S3 bucket with ABAC enabled, tagged ${S3BucketTagKey} = valid KMS key
+        ARN: Require that all new objects be encrypted with KMS key specified
+        in tag value, forbid other encryption types, forbid disabling ABAC.
         GPLv3, Copyright Paul Marcelin. github.com/sqlxpert
       TargetIds: !If [ EnableRcpTrue, !Ref RcpTargetIds, !Ref AWS::NoValue ]
 
       # "WildcardSpecialCharacterOrVariable": Most of these special characters
       # are not currently (2026-04) allowed in S3 tag values, but I am
-      # excluding them to be conservative.
+      # excluding them to be conservative (precautionary principle).
       # https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_variables.html#policy-vars-specialchars
       # https://datatracker.ietf.org/doc/html/rfc7159#section-7
       # https://docs.aws.amazon.com/AmazonS3/latest/userguide/tagging.html#tag-value
       # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html#tag-restrictions
+      #
+      # "s3:TagResource" on "arn:${AWS::Partition}:s3:::*": This RCP concerns
+      # bucket tags only. Though an S3 ARN pattern ending in * might match a
+      # bucket (...:BUCKET_NAME) as well as the objects in it
+      # (...:BUCKET_NAME/OBJECT_KEY), the s3[control] TagResource method does
+      # not currently (2026-04) operate on objects.
+      # https://docs.aws.amazon.com/AmazonS3/latest/API/API_control_TagResource.html#:~:text=This%20operation%20is%20only%20supported%20for
+      #
       Content: !Sub
         - >-
           {
             "Version": "2012-10-17",
             "Statement": [
               {
-                "Sid": "WildcardSpecialCharacterOrVariable",
+                "Sid": "DisableAbacAfterItHasBeenEnabled",
+                "Effect": "Deny",
+                "Principal": "*",
+                "Action": "s3:PutBucketAbac",
+                "Resource": "*",
+                "Condition": {
+                  "Null": {
+                    "s3:BucketTag/${S3BucketTagKey}": "false"
+                  }
+                }
+              },
+              {
+                "Sid": "NewWildcardSpecialCharacterOrVariableNoteExtraConservative",
+                "Effect": "Deny",
+                "Principal": "*",
+                "Action": "s3:TagResource",
+                "Resource": "arn:${AWS::Partition}:s3:::*",
+                "Condition": {
+                  "StringLike": {
+                    "aws:RequestTag/${S3BucketTagKey}": [
+                      "*${!*}*",
+                      "*${!?}*",
+                      "*${!$}*",
+                      "*{*",
+                      "*}*",
+                      "*\\*",
+                      "*%*",
+                      "*!*",
+                      "*\"*",
+                      "*=*",
+                      "*+*",
+                      "*@*"
+                    ]
+                  }
+                }
+              },
+              {
+                "Sid": "ExistingWildcardSpecialCharacterOrVariableNoteExtraConservative",
                 "Effect": "Deny",
                 "Principal": "*",
                 "Action": "s3:PutObject",
@@ -258,7 +297,26 @@ Resources:
                 }
               },
               {
-                "Sid": "Format",
+                "Sid": "NewFormat",
+                "Effect": "Deny",
+                "Principal": "*",
+                "Action": "s3:TagResource",
+                "Resource": "arn:${AWS::Partition}:s3:::*",
+                "Condition": {
+                  "Null": {
+                    "aws:RequestTag/${S3BucketTagKey}": "false"
+                  },
+                  "StringNotLike": {
+                    "aws:RequestTag/${S3BucketTagKey}": [
+                      "arn:${AWS::Partition}:kms:*:????????????:key/????????????????????????????????????",
+                      "????????????:key/????????????????????????????????????",
+                      "????????????????????????????????????"
+                    ]
+                  }
+                }
+              },
+              {
+                "Sid": "ExistingFormat",
                 "Effect": "Deny",
                 "Principal": "*",
                 "Action": "s3:PutObject",
@@ -269,43 +327,38 @@ Resources:
                   },
                   "StringNotLike": {
                     "s3:BucketTag/${S3BucketTagKey}": [
-                      "arn:${AWS::Partition}:kms:*:key/????????-????-????-????-????????????",
-                      "arn:${AWS::Partition}:kms:*:key/mrk-????????????????????????????????",
-                      "????????????:key/????????-????-????-????-????????????",
-                      "????????????:key/mrk-????????????????????????????????",
-                      "????????-????-????-????-????????????",
-                      "mrk-????????????????????????????????"
+                      "arn:${AWS::Partition}:kms:*:????????????:key/????????????????????????????????????",
+                      "????????????:key/????????????????????????????????????",
+                      "????????????????????????????????????"
                     ]
                   }
                 }
               },
               {
-                "Sid": "KmsDualLayerEncryption",
+                "Sid": "OtherEncryptionTypeNoteKmsDefaultEncryptionOmitsHeader",
                 "Effect": "Deny",
                 "Principal": "*",
                 "Action": "s3:PutObject",
                 "Resource": "*",
                 "Condition": {
                   "Null": {
+                    "s3:x-amz-server-side-encryption": "false",
                     "s3:BucketTag/${S3BucketTagKey}": "false"
                   },
-                  "StringEquals": {
-                    "s3:x-amz-server-side-encryption": "aws:kms:dsse"
+                  "StringNotEquals": {
+                    "s3:x-amz-server-side-encryption": "aws:kms"
                   }
                 }
               },
               {
-                "Sid": "KmsKeyFullArnSpanningMultipleArnFieldsRequiresStringOperator",
+                "Sid": "KmsKeyArnNoteSpanningMultipleArnFieldsRequiresStringOperator",
                 "Effect": "Deny",
                 "Principal": "*",
                 "Action": "s3:PutObject",
                 "Resource": "*",
                 "Condition": {
                   "StringLike": {
-                    "s3:BucketTag/${S3BucketTagKey}": [
-                      "arn:${AWS::Partition}:kms:*:key/????????-????-????-????-????????????",
-                      "arn:${AWS::Partition}:kms:*:key/mrk-????????????????????????????????"
-                    ]
+                    "s3:BucketTag/${S3BucketTagKey}": "arn:${AWS::Partition}:kms:*:????????????:key/????????????????????????????????????"
                   },
                   "StringNotEquals": {
                     "s3:x-amz-server-side-encryption-aws-kms-key-id": "${S3BucketTagValueIamPolicyVariable}"
@@ -320,10 +373,7 @@ Resources:
                 "Resource": "*",
                 "Condition": {
                   "StringLike": {
-                    "s3:BucketTag/${S3BucketTagKey}": [
-                      "????????????:key/????????-????-????-????-????????????",
-                      "????????????:key/mrk-????????????????????????????????"
-                    ]
+                    "s3:BucketTag/${S3BucketTagKey}": "????????????:key/????????????????????????????????????"
                   },
                   "StringNotLike": {
                     "s3:x-amz-server-side-encryption-aws-kms-key-id": "arn:${AWS::Partition}:kms:*:${S3BucketTagValueIamPolicyVariable}"
@@ -338,25 +388,10 @@ Resources:
                 "Resource": "*",
                 "Condition": {
                   "StringLike": {
-                    "s3:BucketTag/${S3BucketTagKey}": [
-                      "????????-????-????-????-????????????",
-                      "mrk-????????????????????????????????"
-                    ]
+                    "s3:BucketTag/${S3BucketTagKey}": "????????????????????????????????????"
                   },
                   "ArnNotLike": {
                     "s3:x-amz-server-side-encryption-aws-kms-key-id": "arn:${AWS::Partition}:kms:*:${!aws:ResourceAccount}:key/${S3BucketTagValueIamPolicyVariable}"
-                  }
-                }
-              },
-              {
-                "Sid": "DisableAbacIfEnabled",
-                "Effect": "Deny",
-                "Principal": "*",
-                "Action": "s3:PutBucketAbac",
-                "Resource": "*",
-                "Condition": {
-                  "Null": {
-                    "s3:BucketTag/${S3BucketTagKey}": "false"
                   }
                 }
               }

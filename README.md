@@ -1,72 +1,109 @@
-# Different Buckets, Different Encryption Keys
+# S3 Encryption Tag Magic
 
-Do you maintain a separate bucket policy for every encrypted S3 bucket?
+Have you been maintaining a separate bucket policy for every encrypted S3
+bucket?
 
-&#128161; I've devised **an easier way to enforce encryption**...in one
+&#128161; I've devised **a consistent way to enforce S3 encryption**...in one
 bucket or thousands...in one region or many...in one account or many...with one
-key or many... Simply tag each S3 bucket with a KMS key!
+key or many... Simply tag each S3 bucket with the ARN of a KMS key!
+
+This project is all about scale. It's about getting a policy right one time
+and then generalizing it across a whole organization.
 
 >&#128274; Software supply chain security is on everyone's mind. This solution
 does not require executable code or dependencies. It creates a resource control
-policy, which you can read before attaching. I've made GitHub releases
-immutable. In case you do not want to install the AWS command-line interface
-locally, or execute a shell script, I also explain how to test by hand in AWS
-CloudShell.
+policy, which you can read before attaching. If you do not want to test it by
+running Lambda functions, or by installing the AWS command-line interface
+locally, I also explain how to test in AWS CloudShell. I've made GitHub
+releases immutable.
 
-## How to Use It
+## How to Use
 
-### Tag Bucket
+### Tag a Bucket
 
-Tag a new S3 bucket with the ARN of a KMS key, to require KMS encryption for
-all new objects:
+ 1. Turn on
+    [attribute-based access control](https://docs.aws.amazon.com/AmazonS3/latest/userguide/buckets-tagging-enable-abac.html)
+    for an S3 bucket.
 
-|Tag&nbsp;Key|`security-s3-require-encryption-kms-key-arn`|
-|---:|:---|
-|Tag&nbsp;Value (Sample)|`arn:aws:kms:us-east-1:112233445566:`<br/>`key/0123abcd-45ef-67ab-89cd-012345efabcd`|
+ 2. Tag the S3 bucket with a KMS key ARN.
 
-#### Check Rules
+    |Tag&nbsp;Key|`security-s3-require-encryption-kms-key-arn`|
+    |---:|:---|
+    |Tag&nbsp;Value (Sample)|`arn:aws:kms:us-east-1:112233445566:`<br/>`key/0123abcd-45ef-67ab-89cd-012345efabcd`|
 
-&check;
-[Attribute-based access control](https://docs.aws.amazon.com/AmazonS3/latest/userguide/buckets-tagging-enable-abac.html)
-must be enabled for the bucket.
+    KMS encryption is now required whenever a new object or object version is
+    created, or an object is overwritten.
+
+ 3. Optionally, specify `aws:kms` and the same KMS key, in the bucket's
+    [default encryption configuration](https://docs.aws.amazon.com/AmazonS3/latest/userguide/default-bucket-encryption.html#:~:text=Changes,before%20enabling%20default%20encryption).
+    Users won't have to specify the KMS key.
+
+#### Check the Rules
 
 <details>
-  <summary>Different ways to designate the bucket's KMS key...</summary>
+  <summary>Detailed rules...</summary>
 
 <br/>
 
-|Reference|Bucket Tag Value (Sample)|
-|:---|:---|
-|KMS&nbsp;Key&nbsp;Full&nbsp;ARN|`arn:aws:kms:us-east-1:`<br/>`112233445566:key/0123abcd-45ef-67ab-89cd-012345efabcd`|
-||`arn:aws:kms:us-east-1:`<br/>`112233445566:key/mrk-01ab23cd45ef67ab89cd01ef23ab45cd`|
-|KMS&nbsp;Key&nbsp;Partial&nbsp;ARN|`112233445566:key/0123abcd-45ef-67ab-89cd-012345efabcd`|
-||`112233445566:key/mrk-01ab23cd45ef67ab89cd01ef23ab45cd`|
-|KMS&nbsp;Key&nbsp;ID|`key/0123abcd-45ef-67ab-89cd-012345efabcd`|
-||`key/mrk-01ab23cd45ef67ab89cd01ef23ab45cd`|
+&check; Attribute-based access control must be enabled for the S3 bucket.
 
-I recommend creating every key as an `mrk-`
-[multi-region KMS key](https://docs.aws.amazon.com/kms/latest/developerguide/multi-region-keys-overview.html).
-Use the key policy to lock the
+<details>
+  <summary>Different ways to designate the KMS key...</summary>
+
+---
+
+|Identifier|Bucket Tag Value (Sample)|
+|:---|:---|
+|KMS&nbsp;Key&nbsp;full&nbsp;ARN|`arn:aws:kms:us-east-1:`<br/>`112233445566:key/0123abcd-45ef-67ab-89cd-012345efabcd`|
+||`arn:aws:kms:us-east-1:`<br/>`112233445566:key/mrk-01ab23cd45ef67ab89cd01ef23ab45cd` *|
+|KMS&nbsp;Key&nbsp;partial&nbsp;ARN|`112233445566:key/0123abcd-45ef-67ab-89cd-012345efabcd`|
+||`112233445566:key/mrk-01ab23cd45ef67ab89cd01ef23ab45cd` *|
+|KMS&nbsp;Key&nbsp;ID|`key/0123abcd-45ef-67ab-89cd-012345efabcd`|
+||`key/mrk-01ab23cd45ef67ab89cd01ef23ab45cd` *|
+
+_* Future-proof recommendation: Create `mrk-`
+[multi-region KMS keys](https://docs.aws.amazon.com/kms/latest/developerguide/multi-region-keys-overview.html).
+Use the KMS key policy to lock the
 [primary region](https://docs.aws.amazon.com/kms/latest/developerguide/multi-region-keys-auth.html#mrk-auth-update).
 Limit
 [replica regions](https://docs.aws.amazon.com/kms/latest/developerguide/multi-region-keys-auth.html#mrk-auth-replicate)
-until you need replica keys in other regions.
+until you need replica keys in other regions._
+
+&check; A KMS key alias cannot be used here.
 
 &check; The KMS key must be in the same AWS account as the S3 bucket, unless
-the account number is specified in the bucket tag value.
+the KMS key's account number is in the bucket tag value.
+
+---
 
 </details>
 
 &check; The KMS key must be in the same region as the S3 bucket.
 
-&check; The S3 bucket's
-[default encryption configuration](https://docs.aws.amazon.com/AmazonS3/latest/userguide/default-bucket-encryption.html#:~:text=Changes,before%20enabling%20default%20encryption),
-if set, must reference the same KMS key and specify `aws:kms` encryption. (For
-consistency, no ~`aws:kms:dsse`~
-[dual-layer encryption](https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingDSSEncryption.html)!)
-
 &check; Users' permissions and/or the KMS key policy must allow
 [usage of the KMS key](https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingKMSEncryption.html#:~:text=Permissions).
+
+&check; The S3 bucket's default encryption configuration, if set, must specify
+s`aws:kms` and designate the same KMS key. (For uniformity, ~`aws:kms:dsse`~
+[_dual-layer_ KMS encryption](https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingDSSEncryption.html)
+is not allowed.)
+
+&check; SSE-C-encrypted objects can't be created if ABAC is enabled and the
+bucket is tagged. Also check that
+[SSE-C encryption is blocked](https://docs.aws.amazon.com/AmazonS3/latest/userguide/blocking-unblocking-s3-c-encryption-gpb.html),
+especially if the S3 bucket was created before May,&nbsp;2026.
+
+&check; After ABAC has been enabled, you can only set or change the bucket tag
+to a correctly-formatted value, and you must remove the bucket tag before you
+can disable ABAC.
+
+_Secure recommendation: Block routine use of KMS keys housed in AWS accounts
+that are outside your organization. Consider a service control policy statement
+with an
+[`aws:ResourceOrgID`](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_condition-keys.html#condition-keys-resourceorgid)
+condition._
+
+</details>
 
 ### Create Encrypted Objects
 
@@ -76,7 +113,7 @@ to specify the KMS key, and/or `aws:kms` encryption, when creating objects.
 <details>
   <summary>Specifying encryption details...</summary>
 
-<br/>
+---
 
 |Command or API&nbsp;Method|Option, Parameter, or Header|Input Value|
 |:---|---:|:---:|
@@ -91,12 +128,12 @@ to specify the KMS key, and/or `aws:kms` encryption, when creating objects.
 
 <br/>
 
-|Reference|Sample Input Value &#8675;|
+|Identifier|Sample Input Value &#8675;|
 |:---|:---|
-|KMS&nbsp;Key&nbsp;Full&nbsp;ARN|`arn:aws:kms:us-east-1:`<br/>`112233445566:key/0123abcd-45ef-67ab-89cd-012345efabcd`|
+|KMS&nbsp;Key&nbsp;full&nbsp;ARN|`arn:aws:kms:us-east-1:`<br/>`112233445566:key/0123abcd-45ef-67ab-89cd-012345efabcd` *|
 |KMS&nbsp;Key&nbsp;ID|`0123abcd-45ef-67ab-89cd-012345efabcd`|
 ||`mrk-01ab23cd45ef67ab89cd01ef23ab45cd`|
-|KMS&nbsp;Key&nbsp;Alias&nbsp;Full&nbsp;ARN|`arn:aws:kms:us-east-1:`<br/>`112233445566:alias/alias_for_my_customer_managed_kms_key`|
+|KMS&nbsp;Key&nbsp;Alias&nbsp;full&nbsp;ARN|`arn:aws:kms:us-east-1:`<br/>`112233445566:alias/alias_for_my_customer_managed_kms_key`|
 ||`arn:aws:kms:us-east-1:`<br/>`112233445566:alias/aws/s3`|
 |KMS&nbsp;Key&nbsp;Alias&nbsp;Name|`alias/aws/s3`|
 ||`alias/alias_for_my_customer_managed_kms_key`|
@@ -105,24 +142,46 @@ to specify the KMS key, and/or `aws:kms` encryption, when creating objects.
 
 &check; The KMS key must be in the same region as the S3 bucket.
 
-&check; The requester, the KMS key, and the S3 bucket must all be in the same
-AWS account, unless the KMS key's account number is specified in the S3
-PutObject request or in the S3 bucket's default encryption configuration.
+&check; The KMS key specified in the `PutObject` request or in the bucket's
+default encryption configuration must be the KMS key designated by the
+`security-s3-require-encryption-kms-key-arn` bucket tag value.
+
+&check; The requester must be in the same AWS account as the KMS key and the
+S3 bucket if a KMS key ID (or a KMS alias name) with no account number is
+specified in the `PutObject` request or in the bucket's default encryption
+configuration.
+
+_* Secure recommendation: Create KMS keys in a separate AWS account with no
+other resources. This is the only way, given the default
+["Enable IAM User Permissions"](https://docs.aws.amazon.com/kms/latest/developerguide/key-policy-default.html#key-policy-default-allow-root-enable-iam)
+statement, to be certain that the
+[KMS key policy](https://docs.aws.amazon.com/kms/latest/developerguide/iam-policies-best-practices.html#:~:text=Use%20key%20policies)
+controls all access._
+
+---
 
 </details>
 
 ### Resolve Errors
 
-#### Non-Encrypted Object
+"AccessDenied" will be the most common error when a user tries to create an
+object in a tagged S3 bucket.
 
-Users who try to create non-encrypted S3 objects get an "AccessDenied" error.
-In case a user misses the "require-encryption-kms-key-arn"... in the bucket tag
-key, or doesn't check the tag's value to find out the correct key to use, the
-error message tells an administrator where to look for guidance: "explicit deny
-in a resource control policy".
+&check; Reduce uncertainty by specifying a **KMS key full ARN** in the
+`security-s3-require-encryption-kms-key-arn` bucket tag value and in the
+`PutObject` request. If this does not resolve the error, review the
+[rules](check-rules),
+check the user's permissions, and check the KMS key policy.
+
+In case the user missed "require-encryption-kms-key-arn"... in the bucket tag
+key, or didn't check the bucket tag value to find the correct key, the error
+message tells an administrator where to look: "explicit deny in a resource
+control policy", for example.
+
+#### Sample Error Messages
 
 <details>
-  <summary>Full error message</summary>
+  <summary>Encryption not requested</summary>
 
 <br/>
 
@@ -130,15 +189,69 @@ in a resource control policy".
 An error occurred (AccessDenied) when calling the PutObject operation:
 User: arn:aws:sts::112233445566:assumed-role/AWSReservedSSO_PermSetName_0123456789abcdef/abcde
 is not authorized to perform: s3:PutObject
-on resource: "arn:aws:s3:::test-kms-encryption-only/non-encrypted.txt"
+on resource: "arn:aws:s3:::test-kms-encryption-required/non-encrypted.txt"
 with an explicit deny in a resource control policy
 ```
 
 </details>
 
-#### Insufficient Key Usage Permissions
+<details>
+  <summary>Insufficient KMS key usage permissions</summary>
 
-#### Non-Existent Key
+<br/>
+
+```text
+An error occurred (AccessDenied) when calling the PutObject operation:
+User: arn:aws:sts::112233445566:assumed-role/AWSReservedSSO_PermSetName_0123456789abcdef/abcde
+is not authorized to perform: kms:GenerateDataKey
+on this resource
+because no identity-based policy allows the kms:GenerateDataKey action"
+```
+
+</details>
+
+<details>
+  <summary>Non-existent KMS key</summary>
+
+<br/>
+
+```text
+An error occurred (KMS.NotFoundException) when calling the PutObject operation:
+Key 'arn:aws:kms:us-east-1:112233445566:key/0123abcd-45ef-67ab-89cd-012345efabcd'
+does not exist
+```
+
+</details>
+
+#### Causes of Error
+
+<details>
+  <summary>List of potential causes of error</summary>
+
+<br/>
+
+"AccessDenied" when a user tries to create an object in a tagged S3 bucket
+indicates that...
+
+ 1. The user...
+    - tried to create a non-encrypted S3 object,
+    - lacks sufficient key usage permissions for the KMS key designated by the
+    `security-s3-require-encryption-kms-key-arn` bucket tag value, or
+    - specified a different KMS key, or
+ 2. The S3 bucket's default encryption configuration specifies...
+    - an inconsistent encryption type
+      (&nbsp;`SSEAlgorithm`&nbsp;&ne;&nbsp;`aws:kms`&nbsp;) or
+    - a different KMS key (in&nbsp;`KMSMasterKeyID`&nbsp;), or
+ 3. The KMS key specified by the user or by the bucket's default encryption
+    configuration, or designated by the bucket tag value...
+    - is not in the same region as the S3 bucket, or
+    - is not in the same AWS account as the bucket (if a KMS key ID with no
+      account number is specified), or
+    - is not in the same AWS account as the requester (if a KMS key ID with no
+      account number is specified), or
+    - does not exist.
+
+</details>
 
 ## Install
 
@@ -288,22 +401,20 @@ with an explicit deny in a resource control policy
 
     ```
 
- 7. Tag the bucket.
-
-    ```shell
-    aws s3api put-bucket-tagging --bucket "${S3_BUCKET_NAME}" \
-      --tagging "TagSet=[{Key=${S3_BUCKET_TAG_KEY},Value=${KMS_KEY_ID}}]"
-
-    ```
-
-    &#9888; Tag the bucket _before_ enabling ABAC. The AWS CLI does not yet
-    support the new AWS API methods for tagging ABAC-enabled S3 buckets.
-
- 8. Enable ABAC for the bucket.
+ 7. Enable ABAC for the bucket.
 
     ```shell
     aws s3api put-bucket-abac --bucket "${S3_BUCKET_NAME}" \
       --abac-status 'Status=Enabled'
+
+    ```
+
+ 8. Tag the bucket.
+
+    ```shell
+    aws s3control tag-resource \
+      --account-id "${AWS_ACCT}" --resource-arn "arn:aws:s3:::${S3_BUCKET_NAME}" \
+      --tags "Key=${S3_BUCKET_TAG_KEY},Value=${KMS_KEY_ID}"
 
     ```
 
@@ -331,7 +442,67 @@ with an explicit deny in a resource control policy
 
 </details>
 
-### Test with a Script
+### Test with Lambda Functions
+
+<details>
+  <summary>Instructions for automated testing...</summary>
+
+ 1. Authenticate to the AWS Console in your test AWS account or an account in
+    your test organizational unit. (RCPs do not affect resources in your
+    AWS&nbsp;Organizations management account.) If you use the optional SCP to
+    restrict tagging permissions, make sure that this AWS account number is not
+    subject to the SCP. Choose a role with full S3 permissions.
+
+ 2. [Create a CloudFormation stack](https://console.aws.amazon.com/cloudformation/home?#/stacks/create)
+    from
+    [test/aws-rcp-s3-require-encryption-kms.yaml](/../../blob/main/test/test-aws-rcp-s3-require-encryption-kms.yaml?raw=true)&nbsp;.
+
+    - Copy and paste the suggested stack name.
+    - Fill in the KMS key ARN. If you have used KMS with S3 before, you could
+      view the AWS-managed
+      [`aws/s3`](https://console.aws.amazon.com/kms/home#/kms/defaultKeys)
+      key and copy its ARN. (KMS key aliases won't work in bucket tag values,
+      because they don't work in policies.)
+    - Because this is for temporary use during testing, I do not provide a
+      Terraform alternative.
+    - Trouble creating the stack usually signals a local permissions problem,
+      such as insufficient permissions attached to your IAM role, or the effect
+      of a hidden policy such as a permissions boundary or a service control
+      policy. If you cannot resolve the problem, check with your AWS
+      administrator.
+
+ 3. Open the
+    [TestDirector](https://console.aws.amazon.com/lambda/home#/functions/TestRcpS3RequireEncryptionKmsTestDirector?tab=testing)
+    Lambda function's "Test" tab and click "Test". The contents of the test
+    event are ignored.
+
+ 4. Open the "All events" search page for the
+    [Test](https://console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/TestRcpS3RequireEncryptionKms/log-events$3FfilterPattern$3Derror)
+    CloudWatch log group, and filter for the search term `error`&nbsp;. Review
+    any errors.
+
+    - Uncaught exceptions are unexpected, and usually signal local permission
+      problems.
+
+ 5. Go up to the
+    [Test](https://console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/TestRcpS3RequireEncryptionKms)
+    log group's main page. Open the log streams and unfold the entries to read
+    the test results.
+
+    - The tests are based on a set of 10 (same-account KMS key) or 8 (KMS key
+      in a different account) numbered S3 buckets with different combinations
+      of ABAC, bucket tags, and KMS key identifiers. A decimal number indicates
+      a sub-test.
+
+ 6. If you wish to re-test, check the top-most checkbox to select all of the
+    log streams, then click "Delete. Return to Lambda Test Step&nbsp;3.
+
+ 7. When you are finished, delete the CloudFormation stack.
+
+    - If there was an unexpected error, you might have to empty S3 buckets
+      before you can delete the stack.
+
+</details>
 
 ### Report Bugs
 

@@ -1,0 +1,8 @@
+# Resource control policy requiring KMS encryption for tagged S3 buckets
+# github.com/sqlxpert/aws-rcp-s3-require-encryption-kms
+# GPLv3, Copyright Paul Marcelin
+
+# boto3
+# botocore
+# Included in the AWS Lambda Python runtime; AWS manages patching for all users
+# https://docs.aws.amazon.com/lambda/latest/dg/lambda-python.html

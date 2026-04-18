@@ -451,7 +451,27 @@ indicates that...
 
     ```
 
-10. Delete the bucket.
+10. Try disabling ABAC for the bucket. This should produce "AccessDenied".
+
+    ```shell
+    aws s3api put-bucket-abac --bucket "${S3_BUCKET_NAME}" \
+      --abac-status 'Status=Disabled'
+
+    ```
+
+11. Untag the bucket
+
+    ```shell
+    aws s3control untag-resource \
+      --account-id "${AWS_ACCOUNT}" --resource-arn "arn:aws:s3:::${S3_BUCKET_NAME}" \
+      --tag-keys "${S3_BUCKET_TAG_KEY}"
+
+    ```
+
+12. Repeat Step&nbsp;10 of these manual testing instructions. Now that the
+    bucket is untagged, disabling ABAC should be possible.
+
+13. Delete the bucket.
 
     ```shell
     aws s3 rb "s3://${S3_BUCKET_NAME}" --force

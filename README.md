@@ -7,8 +7,20 @@ bucket?
 bucket or thousands...in one region or many...in one account or many...with one
 key or many... Simply tag each S3 bucket with the ARN of a KMS key!
 
-This project is all about scale. It's about getting a policy right one time
-and then generalizing it across a whole organization.
+Jump to:
+[Usage](#how-to-use)
+&bull;
+[Errors](#resolve-errors)
+&bull;
+[Installation](#install)
+&bull;
+[Testing](#test)
+
+This project is all about scale. It's about getting a policy right one time,
+then generalizing it across a whole organization. Successfully scaling our work
+as infrastructure engineers also requires transferring knowledge and control to
+our clients, the developers, the data scientists, etc. If you choose, you can
+delegate permission to set up encrypted S3 buckets.
 
 >&#128274; Software supply chain security is on everyone's mind. This solution
 does not require executable code or dependencies. It creates a resource control
@@ -61,7 +73,7 @@ releases immutable.
 |KMS&nbsp;Key&nbsp;ID|`key/0123abcd-45ef-67ab-89cd-012345efabcd`|
 ||`key/mrk-01ab23cd45ef67ab89cd01ef23ab45cd` *|
 
-_* Future-proof recommendation: Create `mrk-`
+_* Future-proofing recommendation: Create `mrk-`
 [multi-region KMS keys](https://docs.aws.amazon.com/kms/latest/developerguide/multi-region-keys-overview.html).
 Use the KMS key policy to lock the
 [primary region](https://docs.aws.amazon.com/kms/latest/developerguide/multi-region-keys-auth.html#mrk-auth-update).
@@ -84,9 +96,14 @@ the KMS key's account number is in the bucket tag value.
 [usage of the KMS key](https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingKMSEncryption.html#:~:text=Permissions).
 
 &check; The S3 bucket's default encryption configuration, if set, must specify
-s`aws:kms` and designate the same KMS key. (For uniformity, ~`aws:kms:dsse`~
+`aws:kms` and designate the same KMS key. (For uniformity, ~`aws:kms:dsse`~
 [_dual-layer_ KMS encryption](https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingDSSEncryption.html)
 is not allowed.)
+
+&check; The
+[S3 Bucket Keys](https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucket-key.html)
+setting, if configured, must reference the same KMS key. _Cost-saving
+recommendation: Use this feature to reduce KMS API charges._
 
 &check; SSE-C-encrypted objects can't be created if ABAC is enabled and the
 bucket is tagged. Also check that
@@ -97,7 +114,7 @@ especially if the S3 bucket was created before May,&nbsp;2026.
 to a correctly-formatted value, and you must remove the bucket tag before you
 can disable ABAC.
 
-_Secure recommendation: Block routine use of KMS keys housed in AWS accounts
+_Security recommendation: Block routine use of KMS keys housed in AWS accounts
 that are outside your organization. Consider a service control policy statement
 with an
 [`aws:ResourceOrgID`](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_condition-keys.html#condition-keys-resourceorgid)
@@ -107,8 +124,8 @@ condition._
 
 ### Create Encrypted Objects
 
-Depending on the S3 bucket's default encryption configuration, users may have
-to specify the KMS key, and/or `aws:kms` encryption, when creating objects.
+Depending on the S3 bucket's default encryption configuration, users users may
+have to specify `aws:kms` and the KMS key when creating objects.
 
 <details>
   <summary>Specifying encryption details...</summary>
@@ -151,7 +168,7 @@ S3 bucket if a KMS key ID (or a KMS alias name) with no account number is
 specified in the `PutObject` request or in the bucket's default encryption
 configuration.
 
-_* Secure recommendation: Create KMS keys in a separate AWS account with no
+_* Security recommendation: Create KMS keys in a separate AWS account with no
 other resources. This is the only way, given the default
 ["Enable IAM User Permissions"](https://docs.aws.amazon.com/kms/latest/developerguide/key-policy-default.html#key-policy-default-allow-root-enable-iam)
 statement, to be certain that the
@@ -164,13 +181,13 @@ controls all access._
 
 ### Resolve Errors
 
-"AccessDenied" will be the most common error when a user tries to create an
-object in a tagged S3 bucket.
+"AccessDenied" is the most common error when a user tries to create an object
+in a tagged S3 bucket.
 
 &check; Reduce uncertainty by specifying a **KMS key full ARN** in the
 `security-s3-require-encryption-kms-key-arn` bucket tag value and in the
 `PutObject` request. If this does not resolve the error, review the
-[rules](check-rules),
+[rules](#check-rules),
 check the user's permissions, and check the KMS key policy.
 
 In case the user missed "require-encryption-kms-key-arn"... in the bucket tag
@@ -442,7 +459,7 @@ indicates that...
 
 </details>
 
-### Test with Lambda Functions
+### Test with Lambda
 
 <details>
   <summary>Instructions for automated testing...</summary>
@@ -486,20 +503,21 @@ indicates that...
 
  5. Go up to the
     [Test](https://console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/TestRcpS3RequireEncryptionKms)
-    log group's main page. Open the log streams and unfold the entries to read
-    the test results.
+    log group's main page. Open the "Tester" log streams and unfold the entries
+    to read the results.
 
-    - The tests are based on a set of 10 (same-account KMS key) or 8 (KMS key
-      in a different account) numbered S3 buckets with different combinations
-      of ABAC, bucket tags, and KMS key identifiers. A decimal number indicates
-      a sub-test.
+    - The tests are based on a set of 8 (if the KMS key is in a different AWS
+      account number) or 10 (if it's in the same account) S3 buckets with
+      various combinations of ABAC, bucket tags, and KMS key identifiers. A
+      decimal indicates a sub-test.
 
  6. If you wish to re-test, check the top-most checkbox to select all of the
     log streams, then click "Delete. Return to Lambda Test Step&nbsp;3.
 
  7. When you are finished, delete the CloudFormation stack.
 
-    - If there was an unexpected error, you might have to empty S3 buckets
+    - If there was an unexpected error, you might have to empty some test
+      [S3 buckets](https://console.aws.amazon.com/s3/home)
       before you can delete the stack.
 
 </details>

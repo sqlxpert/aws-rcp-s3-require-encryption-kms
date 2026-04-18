@@ -48,7 +48,7 @@ variable "scp_principal_condition" {
   type        = string
   description = "One or more condition expressions determining which roles (or other IAM principals) are not allowed to set/change/remove the designated S3 bucket tag or enable/disable ABAC, for buckets in AWS accounts subject to the SCP. Separate multiple expressions with commas. Follow Terraform string escape rules for double quotation marks (prefix with a backslash) and any IAM policy variables (double the dollar sign). The default means that a request to change ABAC or the designated tag will be denied if it is not made by the manage-s3 role. (Separately, you would have to create the manage-s3 role and attach an IAM policy allowing the role to read and change S3 bucket tags and ABAC.) To avoid generating the SCP, leave this blank. \"ForAnyValue:StringEquals\" is forbidden; to use this condition operator, write a custom policy. For condition operators, see https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements_condition_operators.html . For condition keys, see https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_condition-keys.html#condition-keys-principal-properties"
 
-  default = "\"ArnNotLike\": { \"aws:PrincipalArn\": \"arn:aws:iam::*:role/manage-s3\" }"
+  default = "\"ArnNotLike\": { \"aws:PrincipalArn\": [ \"arn:aws:iam::*:role/manage-s3\" ] }"
 
   validation {
     error_message = "\"ForAnyValue:StringEquals\" is forbidden. To use this condition operator, write a custom policy."

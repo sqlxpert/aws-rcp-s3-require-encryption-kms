@@ -357,9 +357,10 @@ indicates that...
   <summary>Manual test commands...</summary>
 
  1. Authenticate in your test AWS account or an account in your test
-    organizational unit. (RCPs do not affect resources in your
-    AWS&nbsp;Organizations management account.) Choose a role with full S3
-    permissions.
+    organizational unit.  **This AWS account number must be subject to
+    the RCP and not subject to the optional SCP.** (RCPs and SCPs do not affect
+    resources in your AWS&nbsp;Organizations management account.) Choose a role
+    with full S3 permissions.
 
     - I recommend using
       [AWS CloudShell](https://console.aws.amazon.com/cloudshell/home).
@@ -465,16 +466,17 @@ indicates that...
   <summary>Instructions for automated testing...</summary>
 
  1. Authenticate to the AWS Console in your test AWS account or an account in
-    your test organizational unit. (RCPs do not affect resources in your
-    AWS&nbsp;Organizations management account.) If you use the optional SCP to
-    restrict tagging permissions, make sure that this AWS account number is not
-    subject to the SCP. Choose a role with full S3 permissions.
+    your test organizational unit. **This AWS account number must be subject to
+    the RCP and not subject to the optional SCP.** (RCPs and SCPs do not affect
+    resources in your AWS&nbsp;Organizations management account.) Choose a role
+    with full S3 permissions.
 
  2. [Create a CloudFormation stack](https://console.aws.amazon.com/cloudformation/home?#/stacks/create)
     from
     [test/aws-rcp-s3-require-encryption-kms.yaml](/../../blob/main/test/test-aws-rcp-s3-require-encryption-kms.yaml?raw=true)&nbsp;.
 
-    - Copy and paste the suggested stack name.
+    - Copy and paste the **suggested stack name. Do not change it.** Creating
+      more than one stack from this template is not supported.
     - Fill in the KMS key ARN. If you have used KMS with S3 before, you could
       view the AWS-managed
       [`aws/s3`](https://console.aws.amazon.com/kms/home#/kms/defaultKeys)
@@ -485,36 +487,53 @@ indicates that...
     - Trouble creating the stack usually signals a local permissions problem,
       such as insufficient permissions attached to your IAM role, or the effect
       of a hidden policy such as a permissions boundary or a service control
-      policy. If you cannot resolve the problem, check with your AWS
-      administrator.
+      policy. For example, make sure that the AWS account number is not subject
+      to the optional SCP, or that your role is exempt from the SCP. If you
+      cannot resolve the problem, check with your AWS administrator.
 
  3. Open the
     [TestDirector](https://console.aws.amazon.com/lambda/home#/functions/TestRcpS3RequireEncryptionKmsTestDirector?tab=testing)
-    Lambda function's "Test" tab and click "Test". The contents of the test
-    event are ignored.
+    Lambda function's "Test" tab and click the orange "Test" button.
+
+    - The "Event JSON" value will be ignored.
 
  4. Open the "All events" search page for the
     [Test](https://console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/TestRcpS3RequireEncryptionKms/log-events$3FfilterPattern$3Derror)
-    CloudWatch log group, and filter for the search term `error`&nbsp;. Review
-    any errors.
+    CloudWatch log group, and filter for `error`&nbsp;. Review any errors.
 
     - Uncaught exceptions are unexpected, and usually signal local permission
       problems.
+    - Resource control policy tests cover a set of 8 (if the KMS key has a
+      different AWS account number) or 10 (if it's in the same account)
+      numbered S3 buckets with various combinations of ABAC, bucket tags, and
+      KMS key identifiers. Each test result is a JSON object.
+    - Useful
+      [CloudWatch Logs filter patterns](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/FilterAndPatternSyntax.html#matching-terms-events):
 
- 5. Go up to the
+      |Filter Pattern|Scope|
+      |:---:|:---|
+      |`error`|All errors|
+      |`timeout`|Lambda function timeouts (unlikely)|
+      |`%TEST-\d+%`|All tests|
+      |`"TEST-5."`|Tests on S3 bucket&nbsp;5 (for example)|
+      |`%TEST-\d+\.0%`|Tests that create an unencrypted object (decimal&nbsp;0)|
+      |`%TEST-\d+\.1%`|Tests that create an encrypted object|
+      |`%TEST-\d+\.[2-9]%`|Tests that change ABAC setting or bucket tags|
+
+ 5. If you wish to re-test, open the list of log streams in the
     [Test](https://console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/TestRcpS3RequireEncryptionKms)
-    log group's main page. Open the "Tester" log streams and unfold the entries
-    to read the results.
+    log group, check the top-most checkbox to select all of the log streams,
+    then click "Delete". Return to Step&nbsp;3 of these Lambda testing
+    instructions.
 
-    - The tests are based on a set of 8 (if the KMS key is in a different AWS
-      account number) or 10 (if it's in the same account) S3 buckets with
-      various combinations of ABAC, bucket tags, and KMS key identifiers. A
-      decimal indicates a sub-test.
+    - If there were errors changing ABAC settings or bucket tags (decimal 2
+      through 9 in the test number), check the
+      [Test](https://console.aws.amazon.com/cloudformation/home#/stacks?filteringText=TestS3RequireEncryptionKms&filteringStatus=active&viewNested=true)
+      CloudFormation stack for drift and correct any drift before re-testing
+      ("Stack actions" &rarr; "Detect drift", then "Stack actions" &rarr;
+      "View drift results").
 
- 6. If you wish to re-test, check the top-most checkbox to select all of the
-    log streams, then click "Delete. Return to Lambda Test Step&nbsp;3.
-
- 7. When you are finished, delete the CloudFormation stack.
+ 6. When you are finished, delete the CloudFormation stack.
 
     - If there was an unexpected error, you might have to empty some test
       [S3 buckets](https://console.aws.amazon.com/s3/home)

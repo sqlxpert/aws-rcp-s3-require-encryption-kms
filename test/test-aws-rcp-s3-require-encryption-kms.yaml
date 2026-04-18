@@ -2,7 +2,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 
 Description: |-
-  (Temporary) Tests for
+  (Temporary) Resource control policy tests for
   github.com/sqlxpert/aws-rcp-s3-require-encryption-kms
   GPLv3, Copyright Paul Marcelin
 
@@ -274,6 +274,9 @@ Resources:
   TesterLambdaFnRole:
     Type: AWS::IAM::Role
     Properties:
+      # Temporary, single stack; easy reference (in ScpPrincipalCondition)
+      # without an output:
+      RoleName: TestRcpS3RequireEncryptionKms-Tester
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -365,7 +368,7 @@ Resources:
       # Temporary, single stack; easy reference without an output
       FunctionName: TestRcpS3RequireEncryptionKmsTestDirector
       Role: !GetAtt TestDirectorLambdaFnRole.Arn
-      Timeout: 30  # seconds
+      Timeout: 120  # seconds
       MemorySize: 128  # MB
       LoggingConfig:
         LogGroup: !Ref LambdaFnLogGrp
@@ -458,7 +461,7 @@ Resources:
       # Temporary, single stack; easy reference without an output
       FunctionName: TestRcpS3RequireEncryptionKmsTester
       Role: !GetAtt TesterLambdaFnRole.Arn
-      Timeout: 60  # seconds; note boto3 waiter
+      Timeout: 300  # seconds; note boto3 waiter
       MemorySize: 128  # MB
       LoggingConfig:
         LogGroup: !Ref LambdaFnLogGrp
@@ -659,15 +662,15 @@ Resources:
           def s3_tag_untag_resource(kwargs_base, tag_key, tag_value=None):
               """Tag or untag (no input value) S3 resource, return response or exception
               """
-              if tag_value is None:
-                  response = get_aws_client("s3control").untag_resource(
-                      **kwargs_base,
-                      TagKeys=[
-                          tag_key,
-                      ]
-                  )  # No normal error expected
-              else:
-                  try:
+              try:
+                  if tag_value is None:
+                      response = get_aws_client("s3control").untag_resource(
+                          **kwargs_base,
+                          TagKeys=[
+                              tag_key,
+                          ]
+                      )
+                  else:
                       response = get_aws_client("s3control").tag_resource(
                           **kwargs_base,
                           Tags=[
@@ -677,22 +680,23 @@ Resources:
                               },
                           ]
                       )
-                  except Exception as misc_exception:  # pylint: disable=broad-exception-caught
-                      response = misc_exception
+              except Exception as misc_exception:  # pylint: disable=broad-exception-caught
+                  response = misc_exception
               return response
 
 
-          def s3_tag_bucket(s3_bucket_name, tag_key, tag_value):
+          def s3_tag_untag_bucket(s3_bucket_name, tag_key, tag_value=None):
               """Tag or untag an S3 bucket, return response or exception
               """
               kwargs_base = {
                   "AccountId": ENV["AWS_ACCOUNT_ID"],
                   "ResourceArn": f"arn:{ENV["AWS_PARTITION"]}:s3:::{s3_bucket_name}",
               }
-              response = s3_tag_untag_resource(kwargs_base, tag_key, tag_value)
-              if not isinstance(response, Exception):
-                  s3_tag_untag_resource(kwargs_base, tag_key)
-                  # No normal error expected; ignore this response
+              if tag_value is not None:
+                  response = s3_tag_untag_resource(kwargs_base, tag_key, tag_value)
+              if (tag_value is None) or not isinstance(response, Exception):
+                  # Successful tagging response, if any, is discarded
+                  response = s3_tag_untag_resource(kwargs_base, tag_key)
               return response
 
 
@@ -722,6 +726,16 @@ Resources:
               )
 
 
+          def label_result(result_dict):
+              """Take test result dict, replace "number" with "test_number": "TEST-N+.N"
+
+              Missing "number" key is an unexpected error.
+              """
+              result_dict["test_number"] = f"TEST-{result_dict["number"]:.1f}"
+              del result_dict["number"]
+              return result_dict
+
+
           def assess_boto3_response(
               method_tested, expected_allow, response, result_dict
           ):
@@ -746,7 +760,7 @@ Resources:
                       result_dict.update({
                           "check_cause": response,
                   })
-              log(f"{method_tested}_TEST_RESULT", result_dict)
+              log(f"{method_tested}_TEST_RESULT", label_result(result_dict))
 
 
           def extract_s3_bucket_traits(event):
@@ -839,7 +853,7 @@ Resources:
           ):
               """Take S3 bucket dict, tag value; test TagResource, log result
               """
-              response = s3_tag_bucket(
+              response = s3_tag_untag_bucket(
                   s3_bucket["s3_bucket_name"], tag_key, tag_value
               )
               result_dict = s3_bucket | {  # Copy dict, then update
@@ -848,15 +862,19 @@ Resources:
                   "tag_value": tag_value,
               }
               assess_boto3_response(
-                  "S3_TAG_RESOURCE", expected_allow, response, result_dict
+                  "S3_TAG_UNTAG_RESOURCE", expected_allow, response, result_dict
               )
 
 
-          def test_s3_tag_bucket(s3_bucket):
+          def test_s3_tag_abac_bucket(s3_bucket):
               """Take S3 bucket dict for ABAC-enabled bucket; test TagResource
               """
-              assess_s3_tag_bucket_response(s3_bucket, 0.2, "", tag_key="test")
-              assess_s3_tag_bucket_response(s3_bucket, 0.3, "", expected_allow=False)
+              assess_s3_tag_bucket_response(
+                  s3_bucket, 0.2, "", tag_key="non-protected-tag-key"
+              )
+              assess_s3_tag_bucket_response(
+                  s3_bucket, 0.3, "Wrong format for a KMS key", expected_allow=False
+              )
               for args in (
                   (0.4, ENV["KMS_KEY_ID"]),
                   (0.5, ENV["KMS_KEY_PARTIAL_ARN"]),
@@ -875,7 +893,7 @@ Resources:
                   assess_s3_put_bucket_abac_response(s3_bucket, 0.2, True)
                   assess_s3_put_bucket_abac_response(s3_bucket, 0.3, False)
               if s3_bucket["number"] == 3:
-                  test_s3_tag_bucket(s3_bucket)
+                  test_s3_tag_abac_bucket(s3_bucket)
               if s3_bucket["number"] == 5:
                   assess_s3_put_bucket_abac_response(
                       s3_bucket, 0.2, False, expected_allow=False

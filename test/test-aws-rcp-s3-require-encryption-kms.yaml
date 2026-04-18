@@ -832,9 +832,7 @@ Resources:
           ):
               """Take S3 bucket dict; test PutBucketAbac, log result
               """
-              response = s3_put_bucket_abac(
-                  s3_bucket["s3_bucket_name"], enable_abac
-              )
+              response = s3_put_bucket_abac(s3_bucket["s3_bucket_name"], enable_abac)
               result_dict = s3_bucket | {  # Copy dict, then update
                   "number": s3_bucket["number"] + test_number_fraction,
                   "enable_abac": enable_abac,
@@ -889,13 +887,29 @@ Resources:
               s3_bucket = extract_s3_bucket_traits(event)
               for kms_key_in_request in ["", ENV["KMS_KEY_ARN"]]:
                   assess_s3_put_object_response(s3_bucket, kms_key_in_request)
-              if s3_bucket["number"] == 1:
-                  assess_s3_put_bucket_abac_response(s3_bucket, 0.2, True)
-                  assess_s3_put_bucket_abac_response(s3_bucket, 0.3, False)
-              if s3_bucket["number"] == 3:
-                  test_s3_tag_abac_bucket(s3_bucket)
-              if s3_bucket["number"] == 5:
-                  assess_s3_put_bucket_abac_response(
-                      s3_bucket, 0.2, False, expected_allow=False
-                  )
+
+              match s3_bucket["number"]:
+
+                  case 1:
+                      assess_s3_put_bucket_abac_response(s3_bucket, 0.2, True)
+                      assess_s3_put_bucket_abac_response(s3_bucket, 0.3, False)
+                      # TEST-1.3 passes in spite of the optional SCP! CloudControl
+                      # treats disabling ABAC as a success (idempotence?) if ABAC
+                      # was already disabled.
+
+                  case 3:
+                      test_s3_tag_abac_bucket(s3_bucket)
+
+                  case 5:
+                      assess_s3_put_bucket_abac_response(
+                          s3_bucket, 0.2, False, expected_allow=False
+                      )
         # ZIPFILE_END
+
+  TesterLambdaFnEvInvokeConfig:
+    Type: AWS::Lambda::EventInvokeConfig
+    Properties:
+      FunctionName: !Ref TesterLambdaFn
+      Qualifier: "$LATEST"
+      MaximumEventAgeInSeconds: 300
+      MaximumRetryAttempts: 0

@@ -548,8 +548,8 @@ indicates that...
     then click "Delete". Return to Step&nbsp;3 of these Lambda testing
     instructions.
 
-    - If there were errors changing ABAC settings or bucket tags (decimal 2
-      through 9 in the test number), check the
+    - If there were timeouts, or errors changing ABAC settings or bucket tags
+      (decimal 2 through 9 in the test number), check the
       [Test](https://console.aws.amazon.com/cloudformation/home#/stacks?filteringText=TestS3RequireEncryptionKms&filteringStatus=active&viewNested=true)
       CloudFormation stack for drift and correct any drift before re-testing
       ("Stack actions" &rarr; "Detect drift", then "Stack actions" &rarr;

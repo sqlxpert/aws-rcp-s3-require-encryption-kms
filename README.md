@@ -187,7 +187,7 @@ in a tagged S3 bucket.
 &check; Reduce uncertainty by specifying a **KMS key full ARN** in the
 `security-s3-require-encryption-kms-key-arn` bucket tag value and in the
 `PutObject` request. If this does not resolve the error, review the
-[rules](#check-rules),
+[rules](#check-the-rules),
 check the user's permissions, and check the KMS key policy.
 
 In case the user missed "require-encryption-kms-key-arn"... in the bucket tag
@@ -374,17 +374,19 @@ indicates that...
     cd /tmp
     echo 'Test data' > test.txt
 
-    TIMESTAMP=$( date --utc '+%s' )  # Seconds since start of 1970
-    AWS_ACCT=$( aws sts get-caller-identity --query 'Account' --output text )
+    DATE=$( date --utc --iso-8601 )
+    AWS_ACCOUNT=$( aws sts get-caller-identity --query 'Account' --output text )
     read -p 'S3 bucket     : ' \
-      -e -i "deletable-acct-${AWS_ACCT}-ts-${TIMESTAMP}" -r S3_BUCKET_NAME
+      -e -i "delete-after-${DATE}-${AWS_ACCOUNT}-${AWS_REGION:?'Set this first'}-an" -r S3_BUCKET_NAME
 
     ```
 
  3. Create the bucket.
 
     ```shell
-    aws s3 mb "s3://${S3_BUCKET_NAME}"
+    aws s3api create-bucket \
+      --create-bucket-configuration "LocationConstraint=${AWS_REGION}" \
+      --bucket-namespace 'account-regional' --bucket "${S3_BUCKET_NAME}"
 
     ```
 
@@ -431,7 +433,7 @@ indicates that...
 
     ```shell
     aws s3control tag-resource \
-      --account-id "${AWS_ACCT}" --resource-arn "arn:aws:s3:::${S3_BUCKET_NAME}" \
+      --account-id "${AWS_ACCOUNT}" --resource-arn "arn:aws:s3:::${S3_BUCKET_NAME}" \
       --tags "Key=${S3_BUCKET_TAG_KEY},Value=${KMS_KEY_ID}"
 
     ```

@@ -703,7 +703,7 @@ Differences to note:
   account.)
 - The CloudFormation template for **S**CP testing is
   [test/test-scp-protect-s3-encryption-tag.yaml](/../../blob/main/test/test-scp-protect-s3-encryption-tag.yaml?raw=true)&nbsp;.
-  Set `RcpOn` to `false`&nbsp;.
+  Set `ScpOn` to `false`&nbsp;.
 - If you are advanced user, you can re-attach the **S**CP after creating the
   SCP testing CloudFormation stack but before testing. For the first round
   of testing, exempt `TestScpProtectS3EncryptionTag-TesterLambdaFnRole` from
@@ -721,7 +721,7 @@ https:/console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/TestSc
   through 4 for changing bucket tags and 5 through 7 for changing the ABAC
   setting. Gaps between **S**CP test numbers are intentional.
 - After testing _without_ the SCP, you must re-test _with_ the SCP. Update the
-  CloudFormation stack, changing `RcpOn` to `true`&nbsp;. Re-attach the **S**CP
+  CloudFormation stack, changing `ScpOn` to `true`&nbsp;. Re-attach the **S**CP
   to the AWS account containing the CloudFormation stack. Repeat the test
   process.
 

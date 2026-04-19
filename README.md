@@ -409,9 +409,9 @@ buckets, but in a consistent way.
 Instead of policing the S3 encryption-related settings in miscellaneous
 Terraform modules or CloudFormation stacks that your colleagues might adopt, or
 helping them write encryption statements for one S3 bucket policy after
-another, you can now offer them a universal tool. Choose a KMS key and tag a
-bucket! Tag an existing bucket with the ARN of the KMS key already in use, and
-retire "one-off" statements from a bucket policy!
+another, you can now offer them a universal solution. Choose a KMS key and tag
+a bucket! Tag an existing bucket with the ARN of the KMS key already in use,
+and retire "one-off" statements from a bucket policy!
 
 If you decide to delegate, you can choose different levels of authority for
 different organizational units, and for different IAM roles within a given AWS

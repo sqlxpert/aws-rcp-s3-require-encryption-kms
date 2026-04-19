@@ -697,11 +697,11 @@ Testing the **S**CP with Lambda is similar to
 [testing the RCP with Lambda](#test-the-rcp-with-lambda).
 Differences to note:
 
-- Start in an AWS account that is subject to both the RCP and the **S**CP.
-- Before creating the CloudFormation stack, temporarily detach the **S**CP from
-  the AWS account. (Make this change in your AWS&nbsp;Organizations management
-  account.)
-- The CloudFormation template for **S**CP testing is
+- Test in an AWS account that is subject to both the RCP and the **S**CP.
+- Before creating the **S**CP test CloudFormation stack, temporarily detach the
+  **S**CP from the AWS account in which the stack will be created. (Make this
+  change in your AWS&nbsp;Organizations management account.)
+- The **S**CP test CloudFormation template is
   [test/test-scp-protect-s3-encryption-tag.yaml](/../../blob/main/test/test-scp-protect-s3-encryption-tag.yaml?raw=true)&nbsp;.
   Set `ScpOn` to `false`&nbsp;.
 - If you are advanced user, you can re-attach the **S**CP after creating the

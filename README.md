@@ -403,9 +403,9 @@ control to our "customers" -- developers, data scientists, machine learning
 engineers, etc. Now you can delegate permission to require encryption in S3
 buckets, but in a consistent way.
 
-Instead of policing the S3 encryption-related settings in miscellaneous
-Terraform modules or CloudFormation stacks that your colleagues might adopt, or
-helping them write encryption statements for one S3 bucket policy after
+Instead of policing S3 encryption-related settings in disparate Terraform
+modules or CloudFormation stacks that your colleagues might adopt, or having to
+help them write encryption statements for one S3 bucket policy after another
 another, you can now offer them a universal solution. Choose a KMS key and tag
 a bucket! Tag an existing bucket with the ARN of the KMS key already in use,
 and retire "one-off" statements from a bucket policy!

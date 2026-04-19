@@ -12,6 +12,8 @@ Jump to:
 &bull;
 [Installation](#install)
 &bull;
+[Protection](#protect-bucket-tags)
+&bull;
 [Testing](#test)
 
 This project is all about scale. It's about getting a policy right one time,
@@ -64,11 +66,11 @@ releases immutable.
 
 |Identifier|Bucket Tag Value (Sample)|
 |:---|:---|
-|KMS&nbsp;Key&nbsp;full&nbsp;ARN|`arn:aws:kms:us-east-1:`<br/>`112233445566:key/0123abcd-45ef-67ab-89cd-012345efabcd`|
+|KMS&nbsp;key&nbsp;full&nbsp;ARN|`arn:aws:kms:us-east-1:`<br/>`112233445566:key/0123abcd-45ef-67ab-89cd-012345efabcd`|
 ||`arn:aws:kms:us-east-1:`<br/>`112233445566:key/mrk-01ab23cd45ef67ab89cd01ef23ab45cd` *|
-|KMS&nbsp;Key&nbsp;partial&nbsp;ARN|`112233445566:key/0123abcd-45ef-67ab-89cd-012345efabcd`|
+|KMS&nbsp;key&nbsp;partial&nbsp;ARN|`112233445566:key/0123abcd-45ef-67ab-89cd-012345efabcd`|
 ||`112233445566:key/mrk-01ab23cd45ef67ab89cd01ef23ab45cd` *|
-|KMS&nbsp;Key&nbsp;ID|`key/0123abcd-45ef-67ab-89cd-012345efabcd`|
+|KMS&nbsp;key&nbsp;ID|`key/0123abcd-45ef-67ab-89cd-012345efabcd`|
 ||`key/mrk-01ab23cd45ef67ab89cd01ef23ab45cd` *|
 
 _* Future-proofing recommendation: Create `mrk-`
@@ -145,13 +147,13 @@ have to specify `aws:kms` and the KMS key when creating objects.
 
 |Identifier|Sample Input Value &#8675;|
 |:---|:---|
-|KMS&nbsp;Key&nbsp;full&nbsp;ARN|`arn:aws:kms:us-east-1:`<br/>`112233445566:key/0123abcd-45ef-67ab-89cd-012345efabcd` *|
-|KMS&nbsp;Key&nbsp;ID|`0123abcd-45ef-67ab-89cd-012345efabcd`|
+|KMS&nbsp;key&nbsp;full&nbsp;ARN|`arn:aws:kms:us-east-1:`<br/>`112233445566:key/0123abcd-45ef-67ab-89cd-012345efabcd` *|
+|KMS&nbsp;key&nbsp;ID|`0123abcd-45ef-67ab-89cd-012345efabcd`|
 ||`mrk-01ab23cd45ef67ab89cd01ef23ab45cd`|
-|KMS&nbsp;Key&nbsp;Alias&nbsp;full&nbsp;ARN|`arn:aws:kms:us-east-1:`<br/>`112233445566:alias/alias_for_my_customer_managed_kms_key`|
+|KMS&nbsp;key&nbsp;alias&nbsp;full&nbsp;ARN|`arn:aws:kms:us-east-1:`<br/>`112233445566:alias/alias_for_my_customer_managed_kms_key`|
 ||`arn:aws:kms:us-east-1:`<br/>`112233445566:alias/aws/s3`|
-|KMS&nbsp;Key&nbsp;Alias&nbsp;Name|`alias/aws/s3`|
-||`alias/alias_for_my_customer_managed_kms_key`|
+|KMS&nbsp;key&nbsp;alias&nbsp;name|`alias/alias_for_my_customer_managed_kms_key`|
+||`alias/aws/s3`|
 
 <br/>
 
@@ -285,8 +287,8 @@ control policy", for example.
     - "UntagResource"
     - "PutBucketAbac"
 
-    Use a role that is exempt from the SCP, or ask the local AWS administrator
-    to temporarily detach the SCP from the AWS account.
+    Use an IAM role that is exempt from the SCP, or ask the local AWS
+    administrator to temporarily detach the SCP from the AWS account.
 
 </details>
 
@@ -322,8 +324,8 @@ indicates that...
 
 ## Install
 
- 1. Authenticate in your AWS&nbsp;Organizations management account. Choose a
-    role with administrative privileges. Choose the region where you manage
+ 1. Authenticate in your AWS&nbsp;Organizations management account. Choose an
+    IAM role with administrative privileges. Choose the region where you manage
     infrastructure-as-code templates that create non-regional resources.
 
  2. Review
@@ -399,9 +401,45 @@ indicates that...
  5. Add other AWS account numbers, `ou-`
     organizational unit IDs, or the `r-` root ID to apply the RCP broadly.
 
+## Protect Bucket Tags
+
+<details>
+  <summary>About the optional service control policy...</summary>
+
+<br/>
+
+I provide an optional service control policy that you can apply to
+organizational units to prevent non-exempt IAM roles from enabling or disabling
+ABAC for any S3 bucket. For buckets with ABAC enabled, the policy also prevents
+non-exempt roles from adding/changing/removing the
+`security-s3-require-encryption-kms-key-arn`  bucket tag. **The lack of such a
+control undermines the security of most real-world ABAC applications.**
+
+Test the SCP before applying it, because it generally reduces existing S3
+permissions. Human users or automated processes might rely on those
+permissions.
+
+You will need at least one SCP-exempt role in every account, to manage S3
+buckets. I recommend
+[IAM Identity Center permission sets](https://docs.aws.amazon.com/singlesignon/latest/userguide/permissionsets.html).
+You can customize `ScpPrincipalCondition` / `scp_principal_condition` to
+[reference permission set roles](https://docs.aws.amazon.com/singlesignon/latest/userguide/referencingpermissionsets.html).
+
+SCPs do not affect roles or other IAM principals in the AWS Organizations
+management account.
+
+The SCP offers two-way protection: Non-exempt roles can neither remove
+restrictions from S3 buckets nor place new restrictions on them. For one-way
+protection, that is, allowing non-exempt roles to enroll buckets but not to
+disenroll them, do not deny s3:TagResource but do deny removal of the bucket
+tag. Thanks to the RCP, if the bucket tag can't be removed, ABAC can't be
+disabled.
+
+</details>
+
 ## Test
 
-### Test Manually
+### Test the RCP Manually
 
 <details>
   <summary>Manual test commands...</summary>
@@ -532,10 +570,10 @@ indicates that...
 
 </details>
 
-### Test with Lambda
+### Test the RCP with Lambda
 
 <details>
-  <summary>Instructions for automated testing...</summary>
+  <summary>Instructions for automated RCP testing...</summary>
 
  1. Authenticate to the AWS Console in your test AWS account or an account in
     your test organizational unit. **This AWS account number must be subject to
@@ -545,7 +583,7 @@ indicates that...
 
  2. [Create a CloudFormation stack](https://console.aws.amazon.com/cloudformation/home?#/stacks/create)
     from
-    [test/aws-rcp-s3-require-encryption-kms.yaml](/../../blob/main/test/test-aws-rcp-s3-require-encryption-kms.yaml?raw=true)&nbsp;.
+    [test/test-rcp-s3-encryption-tags.yaml](/../../blob/main/test/test-s3-encryption-tag-rcp.yaml?raw=true)&nbsp;.
 
     - Copy and paste the **suggested stack name. Do not change it.** Creating
       more than one stack from this template is not supported.
@@ -564,13 +602,13 @@ indicates that...
       cannot resolve the problem, check with your local AWS administrator.
 
  3. Open the
-    [TestDirector](https://console.aws.amazon.com/lambda/home#/functions/TestRcpS3RequireEncryptionKmsTestDirector?tab=testing)
+    [TestDirector](https://console.aws.amazon.com/lambda/home#/functions/TestRcpS3EncryptionTagTestDirector?tab=testing)
     Lambda function's "Test" tab and click the orange "Test" button.
 
     - The "Event JSON" value will be ignored.
 
  4. Open the "All events" search page for the
-    [Test](https://console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/TestRcpS3RequireEncryptionKms/log-events$3FfilterPattern$3Derror)
+    [Test](https://console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/TestRcpS3EncryptionTag/log-events$3FfilterPattern$3Derror)
     CloudWatch log group, and filter for `error`&nbsp;. Review any errors.
 
     - Uncaught exceptions are unexpected, and usually signal local permission
@@ -593,7 +631,7 @@ indicates that...
       |`%TEST-\d+\.[2-9]%`|Tests that change bucket tags or the ABAC setting|
 
  5. To re-test, open the list of log streams in the
-    [Test](https://console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/TestRcpS3RequireEncryptionKms)
+    [Test](https://console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/TestRcpS3EncryptionTag)
     log group, check the topmost checkbox to select all of the log streams,
     then click "Delete". Return to Step&nbsp;3 of these Lambda testing
     instructions.
@@ -611,6 +649,40 @@ indicates that...
       objects from the test S3 buckets listed in the
       [Test](https://console.aws.amazon.com/cloudformation/home#/stacks?filteringText=TestS3RequireEncryptionKms&filteringStatus=active&viewNested=true)
       CloudFormation stack's "Resources" tab.
+
+</details>
+
+### Test the Optional SCP
+
+<details>
+  <summary>Instructions for automated SCP testing...</summary>
+
+<br/>
+
+Testing the **S**CP with Lambda is similar to
+[testing the RCP with Lambda](#test-the-rcp-with-lambda).
+Differences to note:
+
+- Start in an AWS account the is subject to both the RCP and the **S**CP.
+- Before creating the CloudFormation stack, temporarily detach the **S**CP from
+  the AWS account. (To make this change, switch to you AWS&nbsp;Organizations
+  management account.)
+- The CloudFormation template for **S**CP testing is
+  [test/test-scp-protect-s3-encryption-tag.yaml](/../../blob/main/test/test-scp-protect-s3-encryption-tag.yaml?raw=true)&nbsp;.
+- Change `RcpOn` from `true` to `false`&nbsp;.
+- Direct links for **S**CP testing are:
+  - Lambda function:
+    [TestScpProtectS3EncryptionTagTestDirector](https://aws.amazon.com/lambda/home#/functions/TestScpProtectS3EncryptionTagTestDirector?tab=testing)
+  - [Log group](https://console.aws.amazon.com/cloudwatch/home?region=us-west-2#logsV2:log-groups/log-group/TestScpProtectS3EncryptionTag/log-events),
+    all events, for filtering
+  - [Log group](
+https:/console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/TestScpProtectS3EncryptionTag),
+    for listen grand dreams.
+- Only three S3 buckets are needed to test the **S**CP. There are intentional
+  gaps between some test numbers.
+- After testing with the SCP not in effect, you must re-test with the SCP.
+  Update the CloudFormation stack, changing `RcpOn` back to `true`&nbsp;.
+  Re-attach the **S**CP to the AWS account of the CloudFormation stack.
 
 </details>
 

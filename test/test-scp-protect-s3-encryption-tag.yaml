@@ -2,7 +2,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 
 Description: |-
-  (Temporary) Resource control policy tests for
+  (Temporary) Service control policy tests for
   github.com/sqlxpert/aws-rcp-s3-require-encryption-kms
   GPLv3, Copyright Paul Marcelin
 
@@ -10,11 +10,32 @@ Parameters:
 
   PlaceholderSuggestedStackName:
     Type: String
-    Default: "TestRcpS3RequireEncryptionKms"
+    Default: "TestScpProtectS3EncryptionTag"
 
   PlaceholderHelp:
     Type: String
-    Default: "github.com/sqlxpert/aws-rcp-s3-require-encryption-kms#test"
+    Default: "github.com/sqlxpert/aws-rcp-s3-require-encryption-kms#test-scp"
+
+  ScpOn:
+    Type: String
+    Description: >-
+      Whether the optional service control policy to protect S3 encryption tags
+      is attached to the AWS account of this CloudFormation stack. This
+      CloudFormation template should be installed, and tests should be
+      conducted, in an AWS account that is subject to the SCP and also in an
+      AWS account that is not subject to the SCP. (Both AWS accounts must be
+      subject to the resource control policy!) As an alternative to using two
+      separate AWS account numbers, you can temporarily exempt the IAM role
+      that  you will use to create this stack, and the
+      "TestScpProtectS3EncryptionTag-TesterLambdaFnRole" role that will be used
+      to conduct the tests, by temporarily modifying the ScpPrincipalCondition
+      parameter of the main RCP/SCP CloudFormation stack (or the
+      scp_principal_condition variable of the RCP/SCP Terraform module)
+      in your AWS Organizations management account.
+    Default: "true"
+    AllowedValues:
+      - "false"
+      - "true"
 
   KmsKeyArn:
     Type: String
@@ -40,7 +61,7 @@ Parameters:
     Description: >-
       Name prefix for all test S3 buckets. This must be 2 to 7 characters
       long.
-    Default: "testrcp"
+    Default: "testscp"
     MinLength: 2
     MaxLength: 7
 
@@ -64,6 +85,7 @@ Metadata:
       - Label:
           default: Essential
         Parameters:
+          - ScpOn
           - KmsKeyArn
       - Label:
           default: Advanced...
@@ -78,6 +100,8 @@ Metadata:
         default: For help with this stack, see
       PlaceholderAdvancedParameters:
         default: Do not change the parameters below unless necessary!
+      ScpOn:
+        default: Whether the service control policy applies
       KmsKeyArn:
         default: KMS encryption key ARN
       TestS3BucketConstantNamePrefix:
@@ -87,14 +111,7 @@ Metadata:
 
 Conditions:
 
-  KmsKeySameAccount: !Equals
-    [ !Ref AWS::AccountId, !Select [ 4, !Split [ ":", !Ref KmsKeyArn ] ] ]
-    # arn:aws:kms:us-east-1:112233445566:key/0123abcd-45ef-67ab-89cd-012345efabcd
-    #   0   1   2         3            4                                        5
-
-  KmsKeySingleRegion: !Equals
-    - !Ref KmsKeyArn
-    - !Join [ "", !Split [ ":key/mrk-", !Ref KmsKeyArn ] ]
+  ScpOnTrue: !Equals [ !Ref ScpOn, "true" ]
 
 Resources:
 
@@ -104,32 +121,12 @@ Resources:
       BucketNamespace: account-regional
       BucketNamePrefix: !Sub "${TestS3BucketConstantNamePrefix}01"
 
-  S3Bucket02Tag:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketNamespace: account-regional
-      BucketNamePrefix: !Sub "${TestS3BucketConstantNamePrefix}02-tag"
-      Tags: [ { Key: !Ref S3BucketTagKey, Value: !Ref KmsKeyArn } ]
-
   S3Bucket03Abac:
     Type: AWS::S3::Bucket
     Properties:
       BucketNamespace: account-regional
       BucketNamePrefix: !Sub "${TestS3BucketConstantNamePrefix}03-abac"
       AbacStatus: Enabled
-
-  S3Bucket04DefaultAbacTag:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketNamespace: account-regional
-      BucketNamePrefix: !Sub "${TestS3BucketConstantNamePrefix}04-default-abac-tag"
-      AbacStatus: Enabled
-      Tags: [ { Key: !Ref S3BucketTagKey, Value: !Ref KmsKeyArn } ]
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault:
-              SSEAlgorithm: "aws:kms"
-              KMSMasterKeyID: !Ref KmsKeyArn
 
   S3Bucket05AbacTag:
     Type: AWS::S3::Bucket
@@ -138,100 +135,6 @@ Resources:
       BucketNamePrefix: !Sub "${TestS3BucketConstantNamePrefix}05-abac-tag"
       AbacStatus: Enabled
       Tags: [ { Key: !Ref S3BucketTagKey, Value: !Ref KmsKeyArn } ]
-
-  S3Bucket06AbacTagWrong:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketNamespace: account-regional
-      BucketNamePrefix: !Sub "${TestS3BucketConstantNamePrefix}06-abac-tag-wrong"
-      AbacStatus: Enabled
-      Tags:
-        - Key: !Ref S3BucketTagKey
-          Value: !Join
-            - ":key/"
-            -
-              - !Select [ 0, !Split [ ":key/", !Ref KmsKeyArn ] ]
-              - !If
-                - KmsKeySingleRegion
-                - "0123abcd-45ef-67ab-89cd-012345efabcd"
-                - "mrk-01ab23cd45ef67ab89cd01ef23ab45cd"
-
-  S3Bucket07AbacTagPartial:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketNamespace: account-regional
-      BucketNamePrefix: !Sub "${TestS3BucketConstantNamePrefix}07-abac-tag-partial"
-      AbacStatus: Enabled
-      Tags:
-        - Key: !Ref S3BucketTagKey
-          Value: !Join
-            - ":"
-            -
-              - !Select [ 4, !Split [ ":", !Ref KmsKeyArn ] ]
-              - !Select [ 5, !Split [ ":", !Ref KmsKeyArn ] ]
-              # arn:aws:kms:us-east-1:112233445566:key/0123abcd-45ef-67ab-89cd-012345efabcd
-              #   0   1   2         3            4                                        5
-
-  S3Bucket08AbacTagPartialWrong:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketNamespace: account-regional
-      BucketNamePrefix: !Sub "${TestS3BucketConstantNamePrefix}08-abac-tag-partial-wrong"
-      # S3 bucket name characters:
-      #   7      longest constant name prefix
-      #  25      variable name prefix for this bucket
-      # -------
-      #      32
-      #          account-regional namespace suffix:
-      #          https://docs.aws.amazon.com/AmazonS3/latest/userguide/gpbucketnamespaces.html#namespace-restrictions
-      #   1        hyphen (-)
-      #  12        AWS account number
-      #   1        hyphen (-)
-      #  14        longest AWS region code (as of 2026-04)
-      #   1        hyphen (-)
-      #   2        "an"
-      # -------
-      #      31
-      # =======
-      #      63  maximum characters in an S3 general-purpose bucket's name
-      AbacStatus: Enabled
-      Tags:
-        - Key: !Ref S3BucketTagKey
-          Value: !Join
-            - ":key/"
-            -
-              - !Select [ 4, !Split [ ":", !Ref KmsKeyArn ] ]
-              - !If
-                - KmsKeySingleRegion
-                - "0123abcd-45ef-67ab-89cd-012345efabcd"
-                - "mrk-01ab23cd45ef67ab89cd01ef23ab45cd"
-
-  S3Bucket09AbacTagId:
-    Type: AWS::S3::Bucket
-    Condition: KmsKeySameAccount
-    Properties:
-      BucketNamespace: account-regional
-      BucketNamePrefix: !Sub "${TestS3BucketConstantNamePrefix}09-abac-tag-id"
-      AbacStatus: Enabled
-      Tags:
-        - Key: !Ref S3BucketTagKey
-          Value: !Select [ 1, !Split [ ":key/", !Ref KmsKeyArn ] ]
-          # arn:aws:kms:us-east-1:112233445566:key/0123abcd-45ef-67ab-89cd-012345efabcd
-          # 0                                0     1                                  1
-
-  S3Bucket10AbacTagIdWrong:
-    Type: AWS::S3::Bucket
-    Condition: KmsKeySameAccount
-    Properties:
-      BucketNamespace: account-regional
-      BucketNamePrefix: !Sub "${TestS3BucketConstantNamePrefix}10-abac-tag-wrong"
-      AbacStatus: Enabled
-      Tags:
-        - Key: !Ref S3BucketTagKey
-          Value: !If
-            - KmsKeySingleRegion
-            - "0123abcd-45ef-67ab-89cd-012345efabcd"
-            - "mrk-01ab23cd45ef67ab89cd01ef23ab45cd"
 
   TestDirectorLambdaFnRole:
     Type: AWS::IAM::Role
@@ -276,7 +179,7 @@ Resources:
     Properties:
       # Temporary, single stack; easy reference (in ScpPrincipalCondition)
       # without an output:
-      RoleName: TestRcpS3RequireEncryptionKms-TesterLambdaFnRole
+      RoleName: TestScpProtectS3EncryptionTag-TesterLambdaFnRole
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -309,45 +212,16 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                  - s3:PutObject
-                  - s3:DeleteObject
-                Resource:
-                  - !Sub "arn:${AWS::Partition}:s3:::${S3Bucket01}/*"
-                  - !Sub "arn:${AWS::Partition}:s3:::${S3Bucket02Tag}/*"
-                  - !Sub "arn:${AWS::Partition}:s3:::${S3Bucket03Abac}/*"
-                  - !Sub "arn:${AWS::Partition}:s3:::${S3Bucket04DefaultAbacTag}/*"
-                  - !Sub "arn:${AWS::Partition}:s3:::${S3Bucket05AbacTag}/*"
-                  - !Sub "arn:${AWS::Partition}:s3:::${S3Bucket06AbacTagWrong}/*"
-                  - !Sub "arn:${AWS::Partition}:s3:::${S3Bucket07AbacTagPartial}/*"
-                  - !Sub "arn:${AWS::Partition}:s3:::${S3Bucket08AbacTagPartialWrong}/*"
-                  - !If
-                    - KmsKeySameAccount
-                    - !Sub "arn:${AWS::Partition}:s3:::${S3Bucket09AbacTagId}/*"
-                    - !Ref AWS::NoValue
-                  - !If
-                    - KmsKeySameAccount
-                    - !Sub "arn:${AWS::Partition}:s3:::${S3Bucket10AbacTagIdWrong}/*"
-                    - !Ref AWS::NoValue
-              - Effect: Allow
-                Action:
-                  - kms:GenerateDataKey
-                Resource:
-                  - !Ref KmsKeyArn
-              - Effect: Allow
-                Action:
                   - s3:TagResource
                   - s3:UntagResource
-                Resource:
-                  - !Sub "arn:${AWS::Partition}:s3:::${S3Bucket03Abac}"
-              - Effect: Allow
-                Action:
                   - s3:PutBucketAbac
                   # OK to remove when cloudformation:UpdateResource is removed:
                   - s3:GetBucketAbac
                 Resource:
                   - !Sub "arn:${AWS::Partition}:s3:::${S3Bucket01}"
+                  - !Sub "arn:${AWS::Partition}:s3:::${S3Bucket03Abac}"
                   - !Sub "arn:${AWS::Partition}:s3:::${S3Bucket05AbacTag}"
-              - Sid: TempOverpermission1UntilLambdaBotoGetsS3PutBucketAbac
+              - Sid: TempOverpermissionUntilLambdaBotoGetsS3PutBucketAbac
                 # See s3_put_bucket_abac in Python source code, below.
                 Effect: Allow
                 Action:
@@ -359,14 +233,14 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       # Temporary, single stack; easy reference without an output
-      LogGroupName: TestRcpS3RequireEncryptionKms
+      LogGroupName: TestScpProtectS3EncryptionTag
       RetentionInDays: 3
 
   TestDirectorLambdaFn:
     Type: AWS::Lambda::Function
     Properties:
       # Temporary, single stack; easy reference without an output
-      FunctionName: TestRcpS3RequireEncryptionKmsTestDirector
+      FunctionName: TestScpProtectS3EncryptionTagTestDirector
       Role: !GetAtt TestDirectorLambdaFnRole.Arn
       Timeout: 120  # seconds
       MemorySize: 128  # MB
@@ -389,20 +263,13 @@ Resources:
                   ","
                 -
                   - !Ref S3Bucket01
-                  - !Ref S3Bucket02Tag
                   - !Ref S3Bucket03Abac
-                  - !Ref S3Bucket04DefaultAbacTag
                   - !Ref S3Bucket05AbacTag
-                  - !Ref S3Bucket06AbacTagWrong
-                  - !Ref S3Bucket07AbacTagPartial
-                  - !Ref S3Bucket08AbacTagPartialWrong
-                  - !If [ KmsKeySameAccount, !Ref S3Bucket09AbacTagId, !Ref AWS::NoValue ]
-                  - !If [ KmsKeySameAccount, !Ref S3Bucket10AbacTagIdWrong, !Ref AWS::NoValue ]
       Handler: index.lambda_handler
       Code:
         ZipFile: |
           #!/usr/bin/env python3
-          """Test director for
+          """Service control policy test director for
 
           github.com/sqlxpert/aws-rcp-s3-require-encryption-kms
           GPLv3, Copyright Paul Marcelin
@@ -459,7 +326,7 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       # Temporary, single stack; easy reference without an output
-      FunctionName: TestRcpS3RequireEncryptionKmsTester
+      FunctionName: TestScpProtectS3EncryptionTagTester
       Role: !GetAtt TesterLambdaFnRole.Arn
       Timeout: 300  # seconds; note boto3 waiter
       MemorySize: 128  # MB
@@ -480,21 +347,18 @@ Resources:
           "S3_BUCKET_CONSTANT_NAME_SUFFIX": !Sub "-${AWS::AccountId}-${AWS::Region}-an"
           "S3_BUCKET_TAG_KEY": !Ref S3BucketTagKey
           "KMS_KEY_ARN": !Ref KmsKeyArn
-
-          # In CloudFormation rather than Python for consistency with tags:
-          "KMS_KEY_PARTIAL_ARN": !Join
-            - ":"
-            -
-              - !Select [ 4, !Split [ ":", !Ref KmsKeyArn ] ]
-              - !Select [ 5, !Split [ ":", !Ref KmsKeyArn ] ]
-          "KMS_KEY_ID": !Select [ 1, !Split [ ":key/", !Ref KmsKeyArn ] ]
-          # arn:aws:kms:us-east-1:112233445566:key/0123abcd-45ef-67ab-89cd-012345efabcd
-          #   0   1   2         3            4                                        5
+          "SCP_ON": !If [ ScpOnTrue, "1", "0" ]
+          # Awful for so many reasons, not least that CloudFormation has no
+          # Boolean type, that all Linux environment variable values are always
+          # just strings, that the capitalization of the true and false
+          # literals differs in YAML and Python, and that Python doesn't offer
+          # an idiomatic way to convert true and false literals to Boolean
+          # values.
       Handler: index.lambda_handler
       Code:
         ZipFile: |
           #!/usr/bin/env python3
-          """Individual test for
+          """Service control policy tester for
 
           github.com/sqlxpert/aws-rcp-s3-require-encryption-kms
           GPLv3, Copyright Paul Marcelin
@@ -523,11 +387,11 @@ Resources:
                   "S3_BUCKET_CONSTANT_NAME_SUFFIX",
                   "S3_BUCKET_TAG_KEY",
                   "KMS_KEY_ARN",
-                  "KMS_KEY_PARTIAL_ARN",
-                  "KMS_KEY_ID",
               ]
           }
-          S3_OBJECT_KEY = "test.txt"
+          SCP_ON = bool(int(os.environ["SCP_ON"]))
+          SCP_OFF = not SCP_ON
+          NON_PROTECTED_TAG_KEY = "non-protected-tag-key"
 
 
           def log(entry_type, entry_value, log_level=logging.INFO):
@@ -561,43 +425,6 @@ Resources:
               if not aws_clients.get(aws_service):
                   aws_clients[aws_service] = boto3.client(aws_service)
               return aws_clients[aws_service]
-
-
-          def s3_delete_object(s3_bucket_name):
-              """Delete test object from S3 bucket, if object exists
-              """
-              return get_aws_client("s3").delete_object(
-                  Bucket=s3_bucket_name,
-                  Key=S3_OBJECT_KEY,
-                  IfMatch='*',  # No normal error expected
-              )
-
-
-          def s3_put_object(s3_bucket_name, kms_key_in_request):
-              """Create object in S3 bucket, then delete; return response or exception
-              """
-              s3_put_object_encryption_kwargs = (
-                  {
-                      "ServerSideEncryption": "aws:kms",
-                      "SSEKMSKeyId": kms_key_in_request,
-                  }
-                  if bool(kms_key_in_request) else
-                  {}
-              )
-              try:
-                  response = get_aws_client("s3").put_object(
-                      Bucket=s3_bucket_name,
-                      Key=S3_OBJECT_KEY,
-                      Body="Test data",
-                      StorageClass="STANDARD",
-                      **s3_put_object_encryption_kwargs,
-                  )
-              except Exception as misc_exception:  # pylint: disable=broad-exception-caught
-                  response = misc_exception
-              else:
-                  s3_delete_object(s3_bucket_name)
-                  # No normal error expected; ignore response
-              return response
 
 
           def s3_put_bucket_abac(s3_bucket_name, enable_abac):
@@ -685,8 +512,10 @@ Resources:
               return response
 
 
-          def s3_tag_untag_bucket(s3_bucket_name, tag_key, tag_value=None):
-              """Tag or untag an S3 bucket, return response or exception
+          def s3_tag_untag_bucket(
+              s3_bucket_name, tag_key, tag_value=None, untag_after_tag=True
+          ):
+              """Tag and/or untag an S3 bucket, return response or exception
               """
               kwargs_base = {
                   "AccountId": ENV["AWS_ACCOUNT_ID"],
@@ -694,14 +523,17 @@ Resources:
               }
               if tag_value is not None:
                   response = s3_tag_untag_resource(kwargs_base, tag_key, tag_value)
-              if (tag_value is None) or not isinstance(response, Exception):
+              if (
+                  (tag_value is None)
+                  or (untag_after_tag and not isinstance(response, Exception))
+              ):
                   # Successful tagging response, if any, is discarded
                   response = s3_tag_untag_resource(kwargs_base, tag_key)
               return response
 
 
           def assess_boto3_response_for_deny(response):
-              """Take a boto3 response or exception, return flags: Deny, Deny from RCP
+              """Take a boto3 response or exception, return flags: Deny, Deny from SCP
               """
               error_message = ""
               if isinstance(response, Exception):
@@ -721,7 +553,7 @@ Resources:
                   deny = False
               return (
                   deny,
-                  ("explicit deny in a resource control policy" in error_message)
+                  ("explicit deny in a service control policy" in error_message)
                   or not deny
               )
 
@@ -741,11 +573,12 @@ Resources:
           ):
               """Take test info., expectation, result; assess, update result, and log
               """
-              (deny, rcp_was_cause_if_deny) = assess_boto3_response_for_deny(response)
+              (deny, scp_was_cause_if_deny) = assess_boto3_response_for_deny(response)
               allow = not deny
               result_dict.update({
+                  "scp": SCP_ON,
                   "allow": allow,
-                  "pass": (expected_allow == allow) and rcp_was_cause_if_deny,
+                  "pass": (expected_allow == allow) and scp_was_cause_if_deny,
               })
               if not result_dict["pass"]:
                   result_dict.update({
@@ -753,10 +586,10 @@ Resources:
                           "Allow was expected"
                           if expected_allow else
                           "Deny was expected"
-                          if rcp_was_cause_if_deny else
-                          "Deny from RCP was expected",
+                          if scp_was_cause_if_deny else
+                          "Deny from SCP was expected",
                   })
-                  if not rcp_was_cause_if_deny:
+                  if not scp_was_cause_if_deny:
                       result_dict.update({
                           "check_cause": response,
                   })
@@ -776,55 +609,9 @@ Resources:
                   "number": int(s3_bucket_traits[0]),
                   "s3_bucket_name": s3_bucket_name,
 
-                  "kms_encryption_bucket_tag": "tag" in s3_bucket_traits,
                   "abac": "abac" in s3_bucket_traits,
-
-                  "default_kms_encryption": "default" in s3_bucket_traits,
               }
-              if s3_bucket["kms_encryption_bucket_tag"]:
-                  s3_bucket.update({
-                      "kms_key_in_bucket_tag_identified_by":
-                          "kms_key_id"
-                          if "id" in s3_bucket_traits else
-                          "kms_key_partial_arn"
-                          if "partial" in s3_bucket_traits else
-                          "kms_key_arn",
-                      "wrong_kms_key_in_bucket_tag": "wrong" in s3_bucket_traits,
-                  })
               return s3_bucket
-
-
-          def assess_s3_put_object_response(s3_bucket, kms_key_in_request):
-              """Take S3 bucket dict, KMS key; test PutObject, log result
-              """
-              response = s3_put_object(s3_bucket["s3_bucket_name"], kms_key_in_request)
-              result_dict = s3_bucket | {  # Copy dict, then update
-                  "number": s3_bucket["number"] + 0.1 * int(bool(kms_key_in_request)),
-                  "kms_key_in_request": kms_key_in_request,
-              }
-              expected_allow = (
-                  # Order matters. Processing stops at first True condition
-                  # (short-circuit), and later conditions are not evaluated.
-                  # "wrong_kms_key_in_bucket_tag" will not be evaluated unless
-                  # certainly present.
-
-                  not(s3_bucket["abac"])
-
-                  or not(s3_bucket["kms_encryption_bucket_tag"])
-
-                  or (
-                      s3_bucket["default_kms_encryption"]
-                      and not s3_bucket["wrong_kms_key_in_bucket_tag"]
-                  )
-
-                  or (
-                      bool(kms_key_in_request)
-                      and not s3_bucket["wrong_kms_key_in_bucket_tag"]
-                  )
-              )
-              assess_boto3_response(
-                  "S3_PUT_OBJECT", expected_allow, response, result_dict
-              )
 
 
           def assess_s3_put_bucket_abac_response(
@@ -847,62 +634,88 @@ Resources:
               test_number_fraction,
               tag_value,
               tag_key=ENV["S3_BUCKET_TAG_KEY"],
+              untag_after_tag=True,
               expected_allow=True
-          ):
+          ):  # pylint: disable=too-many-arguments,too-many-positional-arguments
               """Take S3 bucket dict, tag value; test TagResource, log result
               """
               response = s3_tag_untag_bucket(
-                  s3_bucket["s3_bucket_name"], tag_key, tag_value
+                  s3_bucket["s3_bucket_name"],
+                  tag_key,
+                  tag_value=tag_value,
+                  untag_after_tag=untag_after_tag
               )
               result_dict = s3_bucket | {  # Copy dict, then update
                   "number": s3_bucket["number"] + test_number_fraction,
                   "tag_key": tag_key,
                   "tag_value": tag_value,
+                  "untag_after_tag": untag_after_tag,
               }
               assess_boto3_response(
                   "S3_TAG_UNTAG_RESOURCE", expected_allow, response, result_dict
               )
 
 
-          def test_s3_tag_abac_bucket(s3_bucket):
-              """Take S3 bucket dict for ABAC-enabled bucket; test TagResource
-              """
-              assess_s3_tag_bucket_response(
-                  s3_bucket, 0.2, "", tag_key="non-protected-tag-key"
-              )
-              assess_s3_tag_bucket_response(
-                  s3_bucket, 0.3, "Wrong format for a KMS key", expected_allow=False
-              )
-              for args in (
-                  (0.4, ENV["KMS_KEY_ID"]),
-                  (0.5, ENV["KMS_KEY_PARTIAL_ARN"]),
-                  (0.6, ENV["KMS_KEY_ARN"]),
-              ):
-                  assess_s3_tag_bucket_response(s3_bucket, *args)
-
-
           def lambda_handler(event, context):  # pylint: disable=unused-argument
               """Take event (S3 bucket name); test, and log results
               """
               s3_bucket = extract_s3_bucket_traits(event)
-              for kms_key_in_request in ["", ENV["KMS_KEY_ARN"]]:
-                  assess_s3_put_object_response(s3_bucket, kms_key_in_request)
+
+              assess_s3_tag_bucket_response(
+                  s3_bucket,
+                  0.0,
+                  "tag-value-0-initial",
+                  tag_key=NON_PROTECTED_TAG_KEY,
+                  untag_after_tag=False
+              )
+              assess_s3_tag_bucket_response(
+                  s3_bucket, 0.1, "tag-value-1-changed", tag_key=NON_PROTECTED_TAG_KEY
+              )
+              assess_s3_tag_bucket_response(
+                  s3_bucket, 0.2, ENV["KMS_KEY_ARN"], expected_allow=SCP_OFF
+                  # Tags then untags by default, so restore in TEST-5.3 (SCP_OFF)
+              )
+
+              # Some test numbers are skipped intentionally.
+              # SCP bucket/test numbers are consistent with RCP test equivalents.
+              # Simple by comparison, the SCP tests all have consistent decimals:
+              # N.0 to N.4  Bucket tagging
+              # N.5 to N.7  ABAC
 
               match s3_bucket["number"]:
 
                   case 1:
-                      assess_s3_put_bucket_abac_response(s3_bucket, 0.2, True)
-                      assess_s3_put_bucket_abac_response(s3_bucket, 0.3, False)
-                      # TEST-1.3 passes in spite of the optional SCP! CloudControl
+                      assess_s3_put_bucket_abac_response(
+                          s3_bucket, 0.5, True, expected_allow=SCP_OFF
+                      )
+                      assess_s3_put_bucket_abac_response(
+                          s3_bucket, 0.6, False, expected_allow=True
+                      )
+
+                      # TEST-1.6 passes in spite of the SCP! CloudControl
                       # treats disabling ABAC as a success (idempotence?) if ABAC
-                      # was already disabled.
+                      # was already disabled. After AWS updates boto3 in the
+                      # Python Lambda runtime and CloudControl can be replaced with
+                      # s3.put_bucket_abc , change expected_allow to SCP_OFF .
 
                   case 3:
-                      test_s3_tag_abac_bucket(s3_bucket)
+                      assess_s3_put_bucket_abac_response(
+                          s3_bucket, 0.6, False, expected_allow=SCP_OFF
+                      )
+                      assess_s3_put_bucket_abac_response(
+                          s3_bucket, 0.7, True, expected_allow=SCP_OFF
+                      )
 
                   case 5:
-                      assess_s3_put_bucket_abac_response(
-                          s3_bucket, 0.2, False, expected_allow=False
+                      assess_s3_tag_bucket_response(
+                          s3_bucket, 0.3, None, expected_allow=SCP_OFF
+                      )
+                      assess_s3_tag_bucket_response(
+                          s3_bucket,
+                          0.4,
+                          ENV["KMS_KEY_ARN"],
+                          untag_after_tag=False,  # Restore tag from TEST-5.2 (SCP_OFF)
+                          expected_allow=SCP_OFF
                       )
         # ZIPFILE_END
 

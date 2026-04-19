@@ -10,8 +10,6 @@ key or many... Simply tag each S3 bucket with the ARN of a KMS key!
 Jump to:
 [Usage](#how-to-use)
 &bull;
-[Errors](#resolve-errors)
-&bull;
 [Installation](#install)
 &bull;
 [Testing](#test)
@@ -592,16 +590,16 @@ indicates that...
       |`"TEST-5."`|Tests on S3 bucket&nbsp;5 (for example)|
       |`%TEST-\d+\.0%`|Tests that create an unencrypted object (decimal&nbsp;0)|
       |`%TEST-\d+\.1%`|Tests that create an encrypted object|
-      |`%TEST-\d+\.[2-9]%`|Tests that change ABAC setting or bucket tags|
+      |`%TEST-\d+\.[2-9]%`|Tests that change bucket tags or the ABAC setting|
 
- 5. If you wish to re-test, open the list of log streams in the
+ 5. To re-test, open the list of log streams in the
     [Test](https://console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/TestRcpS3RequireEncryptionKms)
-    log group, check the top-most checkbox to select all of the log streams,
+    log group, check the topmost checkbox to select all of the log streams,
     then click "Delete". Return to Step&nbsp;3 of these Lambda testing
     instructions.
 
-    - If there were timeouts, or errors changing ABAC settings or bucket tags
-      (decimal 2 through 9 in the test number), check the
+    - If there were timeouts, or errors changing bucket tags or the ABAC
+      setting (decimal 2 through 9 in the test number), check the
       [Test](https://console.aws.amazon.com/cloudformation/home#/stacks?filteringText=TestS3RequireEncryptionKms&filteringStatus=active&viewNested=true)
       CloudFormation stack for drift and correct any drift before re-testing
       ("Stack actions" &rarr; "Detect drift", then "Stack actions" &rarr;

@@ -1,30 +1,11 @@
 # S3 Encryption Tag Magic!
 
-Have you been maintaining a separate bucket policy for every encrypted S3
-bucket?
+Have you and your colleagues been maintaining a separate bucket policy for
+every encrypted S3 bucket?
 
 &#128161; I've devised a consistent way to enforce S3 encryption...in one
 bucket or thousands...in one region or many...in one account or many...with one
 key or many... **Simply tag each S3 bucket with the ARN of a KMS key!**
-
-Jump to:
-[Usage](#how-to-use)
-&bull;
-[Installation](#install)
-&bull;
-[Protection](#protect-bucket-tags)
-&bull;
-[Testing](#test)
-
-This project is all about scale. It's about getting a policy right one time,
-then generalizing it across a whole organization. Successfully scaling our work
-as infrastructure engineers also requires transferring knowledge and control to
-our "customers" -- developers, data scientists, machine learning engineers,
-etc. Now you can delegate permission to set up encrypted S3 buckets, but in a
-very consistent way. Your colleagues will no longer need to configure Terraform
-modules or CloudFormation templates for S3 encryption (tagging works no matter
-how an S3 bucket was created), nor write KMS encryption-related statements for
-S3 bucket policies.
 
 >&#128274; Software supply chain security is on everyone's mind. This solution
 does not require executable code or dependencies. It creates a resource control
@@ -32,6 +13,13 @@ policy, which you can read before attaching. If you do not want to test it by
 running Lambda functions, or by installing the AWS command-line interface
 locally, I also explain how to test in AWS CloudShell. I've made GitHub
 releases immutable.
+
+Jump to:
+[Installation](#install)
+&bull;
+[Protection](#protect-bucket-tags)
+&bull;
+[Testing](#test)
 
 ## How to Use
 
@@ -61,8 +49,9 @@ releases immutable.
 
 <br/>
 
-Take a deep breath! S3 is a complicated service. Though there are many rules,
-I've tried to express them succinctly and clearly.
+Take a deep breath! S3 is a complex service with many configuration options,
+but I've tried to summarize the most important rules and recommendations
+concerning KMS encryption.
 
 &check; Attribute-based access control must be enabled for the S3 bucket.
 
@@ -132,10 +121,10 @@ condition._
 ### Create Encrypted Objects
 
 Depending on the S3 bucket's default encryption configuration, users users may
-have to specify `aws:kms` and the KMS key when creating objects.
+need to specify `aws:kms` and the KMS key, when creating objects.
 
 <details>
-  <summary>Specifying encryption details...</summary>
+  <summary>If encryption details are needed...</summary>
 
 ---
 
@@ -410,6 +399,24 @@ indicates that...
 
 ## Protect Bucket Tags
 
+This project is all about scale. It's about getting a policy right one time,
+then generalizing it across an entire organization. Successfully scaling our
+work as infrastructure engineers also requires transferring knowledge and
+control to our "customers" -- developers, data scientists, machine learning
+engineers, etc. Now you can delegate permission to require encryption in S3
+buckets, but in a consistent way.
+
+Instead of policing the S3 encryption-related settings in miscellaneous
+Terraform modules or CloudFormation stacks that your colleagues might adopt, or
+helping them write encryption statements for one S3 bucket policy after
+another, you can now offer them a universal tool. Choose a KMS key and tag a
+bucket! Tag an existing bucket with the ARN of the KMS key already in use, and
+retire "one-off" statements from a bucket policy!
+
+If you decide to delegate, you can choose different levels of authority for
+different organizational units, and for different IAM roles within a given AWS
+account.
+
 <details>
   <summary>About the optional service control policy...</summary>
 
@@ -432,21 +439,40 @@ buckets. I recommend
 You can customize `ScpPrincipalCondition` / `scp_principal_condition` to
 [reference permission set roles](https://docs.aws.amazon.com/singlesignon/latest/userguide/referencingpermissionsets.html).
 
-SCPs do not affect roles or other IAM principals in the AWS Organizations
+SCPs do not affect roles or other IAM principals in the AWS&nbsp;Organizations
 management account.
 
 The SCP offers two-way protection: Non-exempt roles can neither remove
 restrictions from S3 buckets nor place new restrictions on them. For one-way
 protection, that is, allowing non-exempt roles to enroll buckets but not to
-disenroll them, do not deny s3:TagResource but do deny removal of the bucket
-tag. Thanks to the RCP, if the bucket tag can't be removed, ABAC can't be
-disabled.
+disenroll them, you could write an SCP that does not deny use of
+`s3:TagResource` to add the `security-s3-require-encryption-kms-key-arn` but
+does deny use of `s3:TagResource` to change the tag's value, and of
+`s3:UntagResource` to remove the tag. Your SCP would not deny
+`s3:PutBucketAbac` even though, on the surface, it seems that the same
+permission allows enabling and disabling attribute-based access control. (ABAC
+is significant because it makes S3 bucket tags effective. When ABAC is
+disabled, S3 bucket tag IAM condition keys are not available.) But, thanks to a
+clever statement in the **R**CP, if the bucket tag can't be removed, ABAC can't
+be disabled.
+
+You can read more about how the RCP works in the sister project,
+[github.com/sqlxpert/aws-rcp-s3-require-intelligent-tiering](https://github.com/sqlxpert/aws-rcp-s3-require-intelligent-tiering#how-it-works)&nbsp;.
 
 </details>
 
 ## Test
 
 ### Test the RCP Manually
+
+Although automated testing is the only practical way to cover the many cases
+that the RCP was designed to handle, I also recommend that you try the manual
+test commands. It turns out that manual testing is a good learning experience,
+a good way to experiment with modern (2025 and 2026) S3 features like
+[attribute-based access control](https://aws.amazon.com/about-aws/whats-new/2025/11/amazon-s3-attribute-based-access-control)
+and the
+[account-regional bucket namespace](https://aws.amazon.com/about-aws/whats-new/2026/03/amazon-s3-account-regional-namespaces).
+
 
 <details>
   <summary>Manual test commands...</summary>
@@ -459,8 +485,9 @@ disabled.
 
     - I recommend using
       [AWS CloudShell](https://console.aws.amazon.com/cloudshell/home).
-      The AWS CLI is pre-installed and there is no need to obtain credentials
-      on a local computer.
+      The AWS CLI is pre-installed, AWS keeps it up-to-date for you, and there
+      is no need to obtain AWS credentials, whether long- or hopefully
+      short-lived, on your local computer.
 
  2. Populate a test file, confirm the name of a new S3 bucket, and store the
     bucket name.
@@ -572,7 +599,7 @@ disabled.
     aws s3 rb "s3://${S3_BUCKET_NAME}" --force
     ```
 
-    Continue with
+14. Continue with
     [Step 5 of the _installation_ instructions](#install-step-5-context).
 
 </details>

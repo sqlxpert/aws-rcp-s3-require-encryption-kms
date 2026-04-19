@@ -35,7 +35,7 @@ Jump to:
     |---:|:---|
     |Tag&nbsp;Value (Sample)|`arn:aws:kms:us-east-1:112233445566:`<br/>`key/0123abcd-45ef-67ab-89cd-012345efabcd`|
 
-    KMS encryption is now required whenever a new object or object version is
+    Now, KMS encryption is required whenever a new object or object version is
     created, or an object is overwritten.
 
  3. Optionally, specify `aws:kms` and the same KMS key, in the bucket's
@@ -48,10 +48,6 @@ Jump to:
   <summary>Detailed rules...</summary>
 
 <br/>
-
-Take a deep breath! S3 is a complex service with many configuration options,
-but I've tried to summarize the most important rules and recommendations
-concerning KMS encryption.
 
 &check; Attribute-based access control must be enabled for the S3 bucket.
 

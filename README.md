@@ -704,15 +704,15 @@ Differences to note:
 - The CloudFormation template for **S**CP testing is
   [test/test-scp-protect-s3-encryption-tag.yaml](/../../blob/main/test/test-scp-protect-s3-encryption-tag.yaml?raw=true)&nbsp;.
 - The direct AWS Console links for **S**CP testing are:
-  - [Test director Lambda function](https://aws.amazon.com/lambda/home#/functions/TestScpProtectS3EncryptionTagTestDirector?tab=testing)
-  - [Log group](https://console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/TestScpProtectS3EncryptionTag/log-events),
-    all events, for filtering
-  - [Log group](
-https:/console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/TestScpProtectS3EncryptionTag),
-    list of log streams
+  - [TestDirector Lambda function](https://aws.amazon.com/lambda/home#/functions/TestScpProtectS3EncryptionTagTestDirector?tab=testing)
+  - [Log group - all events](https://console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/TestScpProtectS3EncryptionTag/log-events)
+  - [Log group - list of log streams](
+https:/console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/TestScpProtectS3EncryptionTag)
 - Only three S3 buckets are needed to test the **S**CP. These correspond to
-  buckets 1, 3 (ABAC) and 5 (ABAC + bucket tag) in the RCP test stack. Gaps
-  between **S**CP test numbers are intentional.
+  buckets 1, 3 (ABAC) and 5 (ABAC + bucket tag) in the RCP test stack. Because
+  the **S**CP tests are simpler, decimal ranges identify similar operations: 0
+  through 4 for changing bucket tags and 5 through 7 for changing the ABAC
+  setting. Gaps between **S**CP test numbers are intentional.
 - After testing _without_ the SCP, you must re-test _with_ the SCP. Update the
   CloudFormation stack, changing `RcpOn` to `true`&nbsp;. Re-attach the **S**CP
   to the AWS account containing the CloudFormation stack. Repeat the test

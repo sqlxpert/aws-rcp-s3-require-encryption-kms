@@ -92,7 +92,7 @@ the KMS key's account number is in the bucket tag value.
 
 &check; The KMS key must be in the same region as the S3 bucket.
 
-&check; Users' permissions and/or the KMS key policy must allow
+&check; Users' and roles' permissions and/or the KMS key policy must allow
 [usage of the KMS key](https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingKMSEncryption.html#:~:text=Permissions).
 
 &check; The S3 bucket's default encryption configuration, if set, must specify
@@ -184,59 +184,111 @@ controls all access._
 "AccessDenied" is the most common error when a user tries to create an object
 in a tagged S3 bucket.
 
-&check; Reduce uncertainty by specifying a **KMS key full ARN** in the
+&check; If specifying the same **KMS key full ARN** in the
 `security-s3-require-encryption-kms-key-arn` bucket tag value and in the
-`PutObject` request. If this does not resolve the error, review the
+`PutObject` request does not resolve the error, review the
 [rules](#check-the-rules),
-check the user's permissions, and check the KMS key policy.
+check the user or role's permissions (identity-based policies), and check the
+KMS key policy (resource-based policy).
 
 In case the user missed "require-encryption-kms-key-arn"... in the bucket tag
 key, or didn't check the bucket tag value to find the correct key, the error
-message tells an administrator where to look: "explicit deny in a resource
+message tells a local administrator where to look: "explicit deny in a resource
 control policy", for example.
 
-#### Sample Error Messages
+#### Error Messages
 
 <details>
-  <summary>Encryption not requested</summary>
+  <summary>Sample error messages</summary>
 
 <br/>
 
-```text
-An error occurred (AccessDenied) when calling the PutObject operation:
-User: arn:aws:sts::112233445566:assumed-role/AWSReservedSSO_PermSetName_0123456789abcdef/abcde
-is not authorized to perform: s3:PutObject
-on resource: "arn:aws:s3:::test-kms-encryption-required/non-encrypted.txt"
-with an explicit deny in a resource control policy
-```
+ 1. Creating objects
 
-</details>
+    The KMS key specified in the `PutObject` request or in the bucket's default
+    encryption configuration is relevant here.
 
-<details>
-  <summary>Insufficient KMS key usage permissions</summary>
+    The error for a non-existent KMS key is:
 
-<br/>
+    ```text
+    An error occurred (KMS.NotFoundException)
+    when calling the PutObject operation:
+    Key 'arn:aws:kms:us-east-1:112233445566:key/0123abcd-45ef-67ab-89cd-012345efabcd'
+    does not exist
+    ```
 
-```text
-An error occurred (AccessDenied) when calling the PutObject operation:
-User: arn:aws:sts::112233445566:assumed-role/AWSReservedSSO_PermSetName_0123456789abcdef/abcde
-is not authorized to perform: kms:GenerateDataKey
-on this resource
-because no identity-based policy allows the kms:GenerateDataKey action"
-```
+    Most other error messages begin with...
 
-</details>
+    ```text
+    An error occurred (AccessDenied) when calling the PutObject operation:
+    User: arn:aws:sts::112233445566:assumed-role/AWSReservedSSO_PermSetName_0123456789abcdef/abcde
+    is not authorized to perform:
+    ```
 
-<details>
-  <summary>Non-existent KMS key</summary>
+    ...and continue with...
 
-<br/>
+    - Encryption not requested (or KMS key does not match bucket tag value)
 
-```text
-An error occurred (KMS.NotFoundException) when calling the PutObject operation:
-Key 'arn:aws:kms:us-east-1:112233445566:key/0123abcd-45ef-67ab-89cd-012345efabcd'
-does not exist
-```
+      ```text
+      s3:PutObject
+      on resource: "arn:aws:s3:::test-kms-encryption-required/non-encrypted.txt"
+      with an explicit deny in a resource control policy
+      ```
+
+    - Insufficient KMS key usage permissions
+
+      ```text
+      kms:GenerateDataKey
+      on this resource
+      because no identity-based policy allows the kms:GenerateDataKey action"
+      ```
+
+    - Insufficient KMS key usage permissions (key is in a different AWS account)
+
+      ```text
+      kms:GenerateDataKey
+      on this resource
+      because the resource does not exist in this Region,
+      no resource-based policies allow access,
+      or a resource-based policy explicitly denies access
+      ```
+
+ 2. Tagging a bucket or changing the ABAC setting
+
+    If a user tries to disable ABAC for an S3 bucket tagged with
+    `security-s3-require-encryption-kms-key-arn`&nbsp;, the following error
+    occurs:
+
+    ```text
+    An error occurred (AccessDenied) when calling the
+    PutBucketAbac operation:
+    User: arn:aws:sts::112233445566:assumed-role/AWSReservedSSO_PermSetName_0123456789abcdef/abcde
+    is not authorized to perform: s3:PutBucketAbac on resource:
+    "arn:aws:s3:::test-kms-encryption-required"
+    with an explicit deny in a resource control policy
+    ```
+
+    Remove the bucket tag first, then disable ABAC.
+
+    If ABAC is enabled and a user tries to set or change the bucket tag to an
+    incorrectly-formatted value, the error message is similar but the operation
+    is "TagResource". Use of one of the KMS key identifier formats listed in
+    the
+    [rules](#check-the-rules),
+    under "Different ways to designate the KMS key..."
+
+    If the optional service control policy applies, a similar error occurs when
+    a non-exempt user tries to add, update or delete the
+    `security-s3-require-encryption-kms-key-arn` bucket tag (for an S3 bucket
+    with ABAC enabled) or to enable or disable ABAC for _any_ S3 bucket. The
+    policy type is "service control policy" and the S3 operation is one of:
+
+    - "TagResource"
+    - "UntagResource"
+    - "PutBucketAbac"
+
+    Use a role that is exempt from the SCP, or ask the local AWS administrator
+    to temporarily detach the SCP from the AWS account.
 
 </details>
 
@@ -511,7 +563,7 @@ indicates that...
       of a hidden policy such as a permissions boundary or a service control
       policy. For example, make sure that the AWS account number is not subject
       to the optional SCP, or that your role is exempt from the SCP. If you
-      cannot resolve the problem, check with your AWS administrator.
+      cannot resolve the problem, check with your local AWS administrator.
 
  3. Open the
     [TestDirector](https://console.aws.amazon.com/lambda/home#/functions/TestRcpS3RequireEncryptionKmsTestDirector?tab=testing)

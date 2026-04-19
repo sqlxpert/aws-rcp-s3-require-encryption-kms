@@ -1,4 +1,4 @@
-# S3 Encryption Tag Magic!
+# S3 Encryption Tags
 
 Have you and your colleagues been maintaining a separate bucket policy for
 every encrypted S3 bucket?
@@ -440,15 +440,19 @@ management account.
 The SCP offers two-way protection: Non-exempt roles can neither remove
 restrictions from S3 buckets nor place new restrictions on them. For one-way
 protection, that is, allowing non-exempt roles to enroll buckets but not to
-disenroll them, you could write an SCP that does not deny use of
-`s3:TagResource` to add the `security-s3-require-encryption-kms-key-arn` but
-does deny use of `s3:TagResource` to change the tag's value, and of
-`s3:UntagResource` to remove the tag. Your SCP would not deny
-`s3:PutBucketAbac` even though, on the surface, it seems that the same
-permission allows enabling and disabling attribute-based access control. (ABAC
-is significant because it makes S3 bucket tags effective. When ABAC is
-disabled, S3 bucket tag IAM condition keys are not available.) Thanks to the
-**R**CP, if the bucket tag can't be removed, ABAC can't be disabled.
+disenroll them, you could write an SCP that:
+
+- does not deny use of `s3:TagResource` to add the
+  `security-s3-require-encryption-kms-key-arn` bucket tag,
+- does deny use of `s3:TagResource` to change the tag's value,
+- still does deny use of `s3:UntagResource` to remove the tag, and
+- does not deny `s3:PutBucketAbac`&nbsp;
+
+On the surface, it seems that this would allow enabling _and_ disabling
+attribute-based access control. (ABAC is significant because it makes S3
+bucket tags effective. When ABAC is disabled, S3 bucket tag IAM condition
+keys are not available.) But if the bucket tag can't be removed, ABAC can't
+be disabled, thanks to the **R**CP!
 
 You can read more about how the RCP works in the sister project,
 [github.com/sqlxpert/aws-rcp-s3-require-intelligent-tiering](https://github.com/sqlxpert/aws-rcp-s3-require-intelligent-tiering#how-it-works)&nbsp;.

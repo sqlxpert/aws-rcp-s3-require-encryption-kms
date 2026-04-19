@@ -387,8 +387,9 @@ indicates that...
       terraform apply
       ```
 
- 4. <a id="install-step-5-context"></a>Test the RCP as explained below, in
-    [Test](#test).
+ 4. <a id="install-step-5-context"></a>
+    [Test](#test)
+    the RCP as explained below.
 
  5. Add other AWS account numbers, `ou-`
     organizational unit IDs, or the `r-` root ID to apply the RCP broadly.

@@ -14,25 +14,18 @@ Parameters:
 
   PlaceholderHelp:
     Type: String
-    Default: "github.com/sqlxpert/aws-rcp-s3-require-encryption-kms#test-scp"
+    Default: "github.com/sqlxpert/aws-rcp-s3-require-encryption-kms#test"
 
   ScpOn:
     Type: String
     Description: >-
       Whether the optional service control policy to protect S3 encryption tags
-      is attached to the AWS account of this CloudFormation stack. This
-      CloudFormation template should be installed, and tests should be
-      conducted, in an AWS account that is subject to the SCP and also in an
-      AWS account that is not subject to the SCP. (Both AWS accounts must be
-      subject to the resource control policy!) As an alternative to using two
-      separate AWS account numbers, you can temporarily exempt the IAM role
-      that  you will use to create this stack, and the
-      "TestScpProtectS3EncryptionTag-TesterLambdaFnRole" role that will be used
-      to conduct the tests, by temporarily modifying the ScpPrincipalCondition
-      parameter of the main RCP/SCP CloudFormation stack (or the
-      scp_principal_condition variable of the RCP/SCP Terraform module)
-      in your AWS Organizations management account.
-    Default: "true"
+      is in effect. Before creating a CloudFormation stack from this template,
+      temporarily detach the SCP from the AWS account in which you will create
+      the stack. (To make this change, switch to you AWS Organizations
+      management account.) Test once with the SCP off, then re-attach the SCP,
+      change this parameter to true , and re-test.
+    Default: "false"
     AllowedValues:
       - "false"
       - "true"

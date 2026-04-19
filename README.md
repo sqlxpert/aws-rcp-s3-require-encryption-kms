@@ -669,20 +669,19 @@ Differences to note:
   management account.)
 - The CloudFormation template for **S**CP testing is
   [test/test-scp-protect-s3-encryption-tag.yaml](/../../blob/main/test/test-scp-protect-s3-encryption-tag.yaml?raw=true)&nbsp;.
-- Change `RcpOn` from `true` to `false`&nbsp;.
 - Direct links for **S**CP testing are:
-  - Lambda function:
-    [TestScpProtectS3EncryptionTagTestDirector](https://aws.amazon.com/lambda/home#/functions/TestScpProtectS3EncryptionTagTestDirector?tab=testing)
-  - [Log group](https://console.aws.amazon.com/cloudwatch/home?region=us-west-2#logsV2:log-groups/log-group/TestScpProtectS3EncryptionTag/log-events),
+  - [Lambda function](https://aws.amazon.com/lambda/home#/functions/TestScpProtectS3EncryptionTagTestDirector?tab=testing)
+  - [Log group](https://console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/TestScpProtectS3EncryptionTag/log-events),
     all events, for filtering
   - [Log group](
 https:/console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/TestScpProtectS3EncryptionTag),
-    for listen grand dreams.
+    for listing log streams
 - Only three S3 buckets are needed to test the **S**CP. There are intentional
   gaps between some test numbers.
 - After testing with the SCP not in effect, you must re-test with the SCP.
-  Update the CloudFormation stack, changing `RcpOn` back to `true`&nbsp;.
-  Re-attach the **S**CP to the AWS account of the CloudFormation stack.
+  Update the CloudFormation stack, changing `RcpOn` to `true`&nbsp;. Re-attach
+  the **S**CP to the AWS account containing the CloudFormation stack. Repeat
+  the test process.
 
 </details>
 

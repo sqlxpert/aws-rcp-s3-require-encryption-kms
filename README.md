@@ -699,10 +699,17 @@ Differences to note:
 
 - Start in an AWS account that is subject to both the RCP and the **S**CP.
 - Before creating the CloudFormation stack, temporarily detach the **S**CP from
-  the AWS account. (To make this change, switch to your AWS&nbsp;Organizations
-  management account.)
+  the AWS account. (Make this change in your AWS&nbsp;Organizations management
+  account.)
 - The CloudFormation template for **S**CP testing is
   [test/test-scp-protect-s3-encryption-tag.yaml](/../../blob/main/test/test-scp-protect-s3-encryption-tag.yaml?raw=true)&nbsp;.
+  Set `RcpOn` to `false`&nbsp;.
+- If you are advanced user, you can re-attach the **S**CP after creating the
+  SCP testing CloudFormation stack but before testing. For the first round
+  of testing, exempt `TestScpProtectS3EncryptionTag-TesterLambdaFnRole` from
+  the SCP by customizing `ScpPrincipalCondition` / `scp_principal_condition` in
+  the SCP CloudFormation stack or Terraform module. (Make these changes in your
+  AWS&nbsp;Organizations management account.)
 - The direct AWS Console links for **S**CP testing are:
   - [TestDirector Lambda function](https://aws.amazon.com/lambda/home#/functions/TestScpProtectS3EncryptionTagTestDirector?tab=testing)
   - [Log group - all events](https://console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/TestScpProtectS3EncryptionTag/log-events)

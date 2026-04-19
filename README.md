@@ -697,25 +697,26 @@ Testing the **S**CP with Lambda is similar to
 [testing the RCP with Lambda](#test-the-rcp-with-lambda).
 Differences to note:
 
-- Start in an AWS account the is subject to both the RCP and the **S**CP.
+- Start in an AWS account that is subject to both the RCP and the **S**CP.
 - Before creating the CloudFormation stack, temporarily detach the **S**CP from
-  the AWS account. (To make this change, switch to you AWS&nbsp;Organizations
+  the AWS account. (To make this change, switch to your AWS&nbsp;Organizations
   management account.)
 - The CloudFormation template for **S**CP testing is
   [test/test-scp-protect-s3-encryption-tag.yaml](/../../blob/main/test/test-scp-protect-s3-encryption-tag.yaml?raw=true)&nbsp;.
-- Direct links for **S**CP testing are:
-  - [Lambda function](https://aws.amazon.com/lambda/home#/functions/TestScpProtectS3EncryptionTagTestDirector?tab=testing)
+- The direct AWS Console links for **S**CP testing are:
+  - [Test director Lambda function](https://aws.amazon.com/lambda/home#/functions/TestScpProtectS3EncryptionTagTestDirector?tab=testing)
   - [Log group](https://console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/TestScpProtectS3EncryptionTag/log-events),
     all events, for filtering
   - [Log group](
 https:/console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/TestScpProtectS3EncryptionTag),
-    for listing log streams
-- Only three S3 buckets are needed to test the **S**CP. There are intentional
-  gaps between some test numbers.
-- After testing with the SCP not in effect, you must re-test with the SCP.
-  Update the CloudFormation stack, changing `RcpOn` to `true`&nbsp;. Re-attach
-  the **S**CP to the AWS account containing the CloudFormation stack. Repeat
-  the test process.
+    list of log streams
+- Only three S3 buckets are needed to test the **S**CP. These correspond to
+  buckets 1, 3 (ABAC) and 5 (ABAC + bucket tag) in the RCP test stack. Gaps
+  between **S**CP test numbers are intentional.
+- After testing _without_ the SCP, you must re-test _with_ the SCP. Update the
+  CloudFormation stack, changing `RcpOn` to `true`&nbsp;. Re-attach the **S**CP
+  to the AWS account containing the CloudFormation stack. Repeat the test
+  process.
 
 </details>
 

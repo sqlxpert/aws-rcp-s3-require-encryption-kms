@@ -1,11 +1,11 @@
-# S3 Encryption Tag Magic
+# S3 Encryption Tag Magic!
 
 Have you been maintaining a separate bucket policy for every encrypted S3
 bucket?
 
-&#128161; I've devised **a consistent way to enforce S3 encryption**...in one
+&#128161; I've devised a consistent way to enforce S3 encryption...in one
 bucket or thousands...in one region or many...in one account or many...with one
-key or many... Simply tag each S3 bucket with the ARN of a KMS key!
+key or many... **Simply tag each S3 bucket with the ARN of a KMS key!**
 
 Jump to:
 [Usage](#how-to-use)
@@ -19,8 +19,12 @@ Jump to:
 This project is all about scale. It's about getting a policy right one time,
 then generalizing it across a whole organization. Successfully scaling our work
 as infrastructure engineers also requires transferring knowledge and control to
-our clients, the developers, the data scientists, etc. If you choose, you can
-delegate permission to set up encrypted S3 buckets.
+our "customers" -- developers, data scientists, machine learning engineers,
+etc. Now you can delegate permission to set up encrypted S3 buckets, but in a
+very consistent way. Your colleagues will no longer need to configure Terraform
+modules or CloudFormation templates for S3 encryption (tagging works no matter
+how an S3 bucket was created), nor write KMS encryption-related statements for
+S3 bucket policies.
 
 >&#128274; Software supply chain security is on everyone's mind. This solution
 does not require executable code or dependencies. It creates a resource control
@@ -56,6 +60,9 @@ releases immutable.
   <summary>Detailed rules...</summary>
 
 <br/>
+
+Take a deep breath! S3 is a complicated service. Though there are many rules,
+I've tried to express them succinctly and clearly.
 
 &check; Attribute-based access control must be enabled for the S3 bucket.
 

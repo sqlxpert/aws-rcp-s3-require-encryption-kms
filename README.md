@@ -705,10 +705,10 @@ Differences to note:
   [test/test-scp-protect-s3-encryption-tag.yaml](/../../blob/main/test/test-scp-protect-s3-encryption-tag.yaml?raw=true)&nbsp;.
   Set `ScpOn` to `false`&nbsp;.
 - If you are advanced user, you can re-attach the **S**CP after creating the
-  SCP testing CloudFormation stack but before testing. For the first round
-  of testing, exempt `TestScpProtectS3EncryptionTag-TesterLambdaFnRole` from
-  the SCP by customizing `ScpPrincipalCondition` / `scp_principal_condition` in
-  the SCP CloudFormation stack or Terraform module. (Make these changes in your
+  SCP test CloudFormation stack but before testing. For the first round of
+  testing, exempt `TestScpProtectS3EncryptionTag-TesterLambdaFnRole` from the
+  SCP by customizing `ScpPrincipalCondition` / `scp_principal_condition` in the
+  main CloudFormation stack or Terraform module. (Make these changes in your
   AWS&nbsp;Organizations management account.)
 - The direct AWS Console links for **S**CP testing are:
   - [TestDirector Lambda function](https://aws.amazon.com/lambda/home#/functions/TestScpProtectS3EncryptionTagTestDirector?tab=testing)
@@ -717,13 +717,16 @@ Differences to note:
 https:/console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/TestScpProtectS3EncryptionTag)
 - Only three S3 buckets are needed to test the **S**CP. These correspond to
   buckets 1, 3 (ABAC) and 5 (ABAC + bucket tag) in the RCP test stack. Because
-  the **S**CP tests are simpler, decimal ranges identify similar operations: 0
+  the SCP tests are simpler, decimal ranges identify similar operations: 0
   through 4 for changing bucket tags and 5 through 7 for changing the ABAC
-  setting. Gaps between **S**CP test numbers are intentional.
+  setting. Gaps between SCP test numbers are intentional.
 - After testing _without_ the SCP, you must re-test _with_ the SCP. Update the
-  CloudFormation stack, changing `ScpOn` to `true`&nbsp;. Re-attach the **S**CP
-  to the AWS account containing the CloudFormation stack. Repeat the test
-  process.
+  SCP test CloudFormation stack, changing `ScpOn` to `true`&nbsp;. Re-attach
+  the **S**CP to the AWS account containing the CloudFormation stack. (Advanced
+  users, remove the exemption for
+  `TestScpProtectS3EncryptionTag-TesterLambdaFnRole` from
+  `ScpPrincipalCondition` / `scp_principal_condition` in the main
+  CloudFormation stack or Terraform module.) Repeat the testing process.
 
 </details>
 

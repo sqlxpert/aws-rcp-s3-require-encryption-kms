@@ -447,9 +447,8 @@ does deny use of `s3:TagResource` to change the tag's value, and of
 `s3:PutBucketAbac` even though, on the surface, it seems that the same
 permission allows enabling and disabling attribute-based access control. (ABAC
 is significant because it makes S3 bucket tags effective. When ABAC is
-disabled, S3 bucket tag IAM condition keys are not available.) thanks to a
-clever statement in the **R**CP, if the bucket tag can't be removed, ABAC can't
-be disabled.
+disabled, S3 bucket tag IAM condition keys are not available.) Thanks to the
+**R**CP, if the bucket tag can't be removed, ABAC can't be disabled.
 
 You can read more about how the RCP works in the sister project,
 [github.com/sqlxpert/aws-rcp-s3-require-intelligent-tiering](https://github.com/sqlxpert/aws-rcp-s3-require-intelligent-tiering#how-it-works)&nbsp;.

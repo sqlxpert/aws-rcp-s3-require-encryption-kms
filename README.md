@@ -120,8 +120,8 @@ condition._
 
 ### Create Encrypted Objects
 
-Depending on the S3 bucket's default encryption configuration, users users may
-need to specify `aws:kms` and the KMS key, when creating objects.
+Depending on the S3 bucket's default encryption configuration, users may need
+to specify `aws:kms` and the KMS key, when creating objects.
 
 <details>
   <summary>If encryption details are needed...</summary>

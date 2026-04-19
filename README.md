@@ -611,9 +611,9 @@ and the
 
  1. Authenticate to the AWS Console in your test AWS account or an account in
     your test organizational unit. **This AWS account number must be subject to
-    the RCP and not subject to the optional SCP.** (RCPs and SCPs do not affect
-    resources in your AWS&nbsp;Organizations management account.) Choose a role
-    with full S3 permissions.
+    the RCP and not subject to the optional SCP.** (RCPs never affect resources
+    in your AWS&nbsp;Organizations management account.) Choose a role with full
+    S3 permissions.
 
  2. [Create a CloudFormation stack](https://console.aws.amazon.com/cloudformation/home?#/stacks/create)
     from

@@ -27,7 +27,9 @@ Jump to:
 
  1. Turn on
     [attribute-based access control](https://docs.aws.amazon.com/AmazonS3/latest/userguide/buckets-tagging-enable-abac.html)
-    for an S3 bucket.
+    for an S3 bucket. If the bucket was already in use, or if it is new but
+    will be used with old code or scripts, be aware of the new commands/API
+    methods and permissions for S3 bucket tagging.
 
  2. Tag the S3 bucket with a KMS key ARN.
 

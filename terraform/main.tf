@@ -21,7 +21,7 @@ locals {
 resource "aws_organizations_policy" "rcp_s3_bucket_require_encryption" {
   type        = "RESOURCE_CONTROL_POLICY"
   name        = "S3Bucket-${var.rcp_scp_name_suffix}"
-  description = "S3 bucket with ABAC enabled, tagged ${var.s3_bucket_tag_key} = : valid KMS key ARN: Require that all new objects be encrypted with KMS key specified in tag value, forbid other encryption types, forbid disabling ABAC. GPLv3, Copyright Paul Marcelin. github.com/sqlxpert"
+  description = "S3 bucket with ABAC enabled, tagged ${var.s3_bucket_tag_key} = valid KMS key ARN: Require that all new objects be encrypted with KMS key specified in tag value, forbid other encryption types, forbid disabling ABAC. GPLv3, Copyright Paul Marcelin. github.com/sqlxpert"
   tags        = local.rcp_scp_tags
 
   # See comments under RcpS3BucketRequireEncryption in

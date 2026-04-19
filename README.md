@@ -404,11 +404,11 @@ engineers, etc. Now you can delegate permission to require encryption in S3
 buckets, but in a consistent way.
 
 Instead of policing S3 encryption-related settings in disparate Terraform
-modules or CloudFormation stacks that your colleagues might adopt, or having to
-help them write encryption statements for one S3 bucket policy after another
+modules or CloudFormation stacks that your colleagues adopt, or having to help
+your colleagues write encryption statements for one S3 bucket policy after
 another, you can now offer them a universal solution. Choose a KMS key and tag
 a bucket! Tag an existing bucket with the ARN of the KMS key already in use,
-and retire "one-off" statements from a bucket policy!
+and delete "one-off" statements from the bucket policy!
 
 If you decide to delegate, you can choose different levels of authority for
 different organizational units, and for different IAM roles.
@@ -438,7 +438,7 @@ You can customize `ScpPrincipalCondition` / `scp_principal_condition` to
 SCPs do not affect roles or other IAM principals in the AWS&nbsp;Organizations
 management account.
 
-The SCP offers two-way protection: Non-exempt roles can neither remove
+The included SCP offers two-way protection: non-exempt roles can neither remove
 restrictions from S3 buckets nor place new restrictions on them. For one-way
 protection, that is, allowing non-exempt roles to enroll buckets but not to
 disenroll them, you could write an SCP that:
@@ -447,15 +447,16 @@ disenroll them, you could write an SCP that:
   `security-s3-require-encryption-kms-key-arn` bucket tag,
 - does deny use of `s3:TagResource` to change the tag's value,
 - still does deny use of `s3:UntagResource` to remove the tag, and
-- does not deny `s3:PutBucketAbac`&nbsp;
+- does not deny `s3:PutBucketAbac`&nbsp;.
 
 On the surface, it seems that this would allow enabling _and_ disabling
-attribute-based access control. (ABAC is significant because it makes S3
-bucket tags effective. When ABAC is disabled, S3 bucket tag IAM condition
-keys are not available.) But if the bucket tag can't be removed, ABAC can't
-be disabled, thanks to the **R**CP!
+attribute-based access control. (ABAC is significant because it makes S3 bucket
+tags effective. When ABAC is disabled, S3 bucket tag IAM condition keys are not
+available.) But if the bucket tag can't be removed, ABAC can't be disabled,
+thanks to the **R**CP!
 
-You can read more about how the RCP works in the sister project,
+You can learn more about my S3 bucket tag RCP design pattern in the ReadMe for
+the sister project,
 [github.com/sqlxpert/aws-rcp-s3-require-intelligent-tiering](https://github.com/sqlxpert/aws-rcp-s3-require-intelligent-tiering#how-it-works)&nbsp;.
 
 </details>

@@ -410,8 +410,7 @@ a bucket! Tag an existing bucket with the ARN of the KMS key already in use,
 and retire "one-off" statements from a bucket policy!
 
 If you decide to delegate, you can choose different levels of authority for
-different organizational units, and for different IAM roles within a given AWS
-account.
+different organizational units, and for different IAM roles.
 
 <details>
   <summary>About the optional service control policy...</summary>
@@ -448,7 +447,7 @@ does deny use of `s3:TagResource` to change the tag's value, and of
 `s3:PutBucketAbac` even though, on the surface, it seems that the same
 permission allows enabling and disabling attribute-based access control. (ABAC
 is significant because it makes S3 bucket tags effective. When ABAC is
-disabled, S3 bucket tag IAM condition keys are not available.) But, thanks to a
+disabled, S3 bucket tag IAM condition keys are not available.) thanks to a
 clever statement in the **R**CP, if the bucket tag can't be removed, ABAC can't
 be disabled.
 

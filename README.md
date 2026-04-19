@@ -642,7 +642,7 @@ and the
     - The "Event JSON" value will be ignored.
 
  4. Open the "All events" search page for the
-    [Test](https://console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/TestRcpS3EncryptionTag/log-events$3FfilterPattern$3Derror)
+    [Test](https://console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/TestRcpS3EncryptionTag/log-events)
     CloudWatch log group, and filter for `error`&nbsp;. Review any errors.
 
     - Uncaught exceptions are unexpected, and usually signal local permission
@@ -704,7 +704,7 @@ Differences to note:
 - The **S**CP test CloudFormation template is
   [test/test-scp-protect-s3-encryption-tag.yaml](/../../blob/main/test/test-scp-protect-s3-encryption-tag.yaml?raw=true)&nbsp;.
   Set `ScpOn` to `false`&nbsp;.
-- If you are advanced user, you can re-attach the **S**CP after creating the
+- If you are an advanced user, you can re-attach the **S**CP after creating the
   SCP test CloudFormation stack but before testing. For the first round of
   testing, exempt `TestScpProtectS3EncryptionTag-TesterLambdaFnRole` from the
   SCP by customizing `ScpPrincipalCondition` / `scp_principal_condition` in the

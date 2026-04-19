@@ -31,9 +31,9 @@ Jump to:
 
  2. Tag the S3 bucket with a KMS key ARN.
 
-    |Tag&nbsp;Key|`security-s3-require-encryption-kms-key-arn`|
+    |Bucket Tag Key|`security-s3-require-encryption-kms-key-arn`|
     |---:|:---|
-    |Tag&nbsp;Value (Sample)|`arn:aws:kms:us-east-1:112233445566:`<br/>`key/0123abcd-45ef-67ab-89cd-012345efabcd`|
+    |Bucket Tag Value (Sample)|`arn:aws:kms:us-east-1:112233445566:`<br/>`key/0123abcd-45ef-67ab-89cd-012345efabcd`|
 
     Now, KMS encryption is required whenever a new object or object version is
     created, or an object is overwritten.

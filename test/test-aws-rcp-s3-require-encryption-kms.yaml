@@ -276,7 +276,7 @@ Resources:
     Properties:
       # Temporary, single stack; easy reference (in ScpPrincipalCondition)
       # without an output:
-      RoleName: TestRcpS3RequireEncryptionKms-Tester
+      RoleName: TestRcpS3RequireEncryptionKms-TesterLambdaFnRole
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:

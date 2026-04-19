@@ -416,8 +416,7 @@ Resources:
           Value: "GPLv3. Copyright Paul Marcelin."
       Description: !Sub >-
         S3 bucket: Matching IAM principals cannot enable/disable ABAC. If ABAC
-        is enabled, they cannot add/change/remove '${S3BucketTagKey}' bucket
-        tag.
+        is enabled, they cannot add/change/remove ${S3BucketTagKey} bucket tag.
         GPLv3, Copyright Paul Marcelin. github.com/sqlxpert
       TargetIds: !If [ EnableScpTrue, !Ref ScpTargetIds, !Ref AWS::NoValue ]
       Content: !Sub

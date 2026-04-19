@@ -150,21 +150,6 @@ resource "aws_organizations_policy" "rcp_s3_bucket_require_encryption" {
           }
         },
         {
-          "Sid": "KmsDualLayerEncryption",
-          "Effect": "Deny",
-          "Principal": "*",
-          "Action": "s3:PutObject",
-          "Resource": "*",
-          "Condition": {
-            "Null": {
-              "s3:BucketTag/${var.s3_bucket_tag_key}": "false"
-            },
-            "StringEquals": {
-              "s3:x-amz-server-side-encryption": "aws:kms:dsse"
-            }
-          }
-        },
-        {
           "Sid": "KmsKeyArnNoteSpanningMultipleArnFieldsRequiresStringOperator",
           "Effect": "Deny",
           "Principal": "*",
@@ -234,7 +219,7 @@ resource "aws_organizations_policy" "scp_s3_bucket_restrict_tag_and_abac_changes
 
   type        = "SERVICE_CONTROL_POLICY"
   name        = "S3BucketRestrictTagAndAbacChanges-${var.rcp_scp_name_suffix}"
-  description = "S3 bucket: Matching IAM principals cannot enable/disable ABAC. If ABAC is enabled, they cannot add/change/remove '${var.s3_bucket_tag_key}' bucket tag. GPLv3, Copyright Paul Marcelin. github.com/sqlxpert"
+  description = "S3 bucket: Matching IAM principals cannot enable/disable ABAC. If ABAC is enabled, they cannot add/change/remove ${var.s3_bucket_tag_key} bucket tag. GPLv3, Copyright Paul Marcelin. github.com/sqlxpert"
   tags        = local.rcp_scp_tags
 
   # I prefer data.aws_iam_policy_document , but a HEREDOC allows source parity

@@ -499,8 +499,8 @@ indicates that...
 
     - Copy and paste the **suggested stack name. Do not change it.** Creating
       more than one stack from this template is not supported.
-    - Fill in the KMS key ARN. If you have used KMS with S3 before, you could
-      view the AWS-managed
+    - Fill in the KMS key ARN. If KMS encryption has already been used with S3
+      in this AWS account and region, you can view the AWS-managed
       [`aws/s3`](https://console.aws.amazon.com/kms/home#/kms/defaultKeys)
       key and copy its ARN. (KMS key aliases won't work in bucket tag values,
       because they don't work in policies.)
@@ -557,9 +557,10 @@ indicates that...
 
  6. When you are finished, delete the CloudFormation stack.
 
-    - If there was an unexpected error, you might have to empty some test
-      [S3 buckets](https://console.aws.amazon.com/s3/home)
-      before you can delete the stack.
+    - If there was an unexpected error, you might first have to delete all
+      objects from the test S3 buckets listed in the
+      [Test](https://console.aws.amazon.com/cloudformation/home#/stacks?filteringText=TestS3RequireEncryptionKms&filteringStatus=active&viewNested=true)
+      CloudFormation stack's "Resources" tab.
 
 </details>
 

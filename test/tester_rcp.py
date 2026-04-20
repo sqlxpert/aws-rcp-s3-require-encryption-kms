@@ -1,0 +1,412 @@
+#!/usr/bin/env python3
+"""Resource control policy tester for
+
+github.com/sqlxpert/aws-rcp-s3-require-encryption-kms
+GPLv3, Copyright Paul Marcelin
+
+See TestDirectorLambdaFn for input event format.
+"""
+
+import os
+import logging
+import json
+import botocore
+import boto3
+
+
+logger = logging.getLogger()
+# Skip "credentials in environment" INFO message, unavoidable in AWS Lambda:
+logging.getLogger("botocore").setLevel(logging.WARNING)
+
+
+ENV = {
+    variable_name: os.environ[variable_name]
+    for variable_name in [
+        "AWS_PARTITION",
+        "AWS_ACCOUNT_ID",
+        "S3_BUCKET_CONSTANT_NAME_PREFIX",
+        "S3_BUCKET_CONSTANT_NAME_SUFFIX",
+        "S3_BUCKET_TAG_KEY",
+        "KMS_KEY_ARN",
+        "KMS_KEY_PARTIAL_ARN",
+        "KMS_KEY_ID",
+    ]
+}
+S3_OBJECT_KEY = "test.txt"
+
+
+def log(entry_type, entry_value, log_level=logging.INFO):
+    """Take type and value, and emit a JSON-format log entry
+    """
+    entry_value_out = json.loads(json.dumps(entry_value, default=str))
+    # Avoids "Object of type datetime is not JSON serializable" in
+    # https://github.com/aws/aws-lambda-python-runtime-interface-client/blob/9efb462/awslambdaric/lambda_runtime_log_utils.py#L109-L135
+    #
+    # The JSON encoder in the AWS Lambda Python runtime isn't configured to
+    # serialize datatime values in responses returned by AWS's own Python SDK!
+    #
+    # Alternative considered:
+    # https://docs.powertools.aws.dev/lambda/python/latest/core/logger
+
+    logger.log(
+        log_level, "", extra={"type": entry_type, "value": entry_value_out}
+    )
+
+
+aws_clients = {}
+
+
+def get_aws_client(aws_service):
+    """Return an AWS service client, creating it if necessary
+
+    Alternatives considered:
+    https://github.com/boto/boto3/issues/3197#issue-1175578228
+    https://github.com/aws-samples/boto-session-manager-project
+    """
+    if not aws_clients.get(aws_service):
+        aws_clients[aws_service] = boto3.client(aws_service)
+    return aws_clients[aws_service]
+
+
+def s3_delete_object(s3_bucket_name):
+    """Delete test object from S3 bucket, if object exists
+    """
+    return get_aws_client("s3").delete_object(
+        Bucket=s3_bucket_name,
+        Key=S3_OBJECT_KEY,
+        IfMatch='*',  # No normal error expected
+    )
+
+
+def s3_put_object(s3_bucket_name, kms_key_in_request):
+    """Create object in S3 bucket, then delete; return response or exception
+    """
+    s3_put_object_encryption_kwargs = (
+        {
+            "ServerSideEncryption": "aws:kms",
+            "SSEKMSKeyId": kms_key_in_request,
+        }
+        if bool(kms_key_in_request) else
+        {}
+    )
+    try:
+        response = get_aws_client("s3").put_object(
+            Bucket=s3_bucket_name,
+            Key=S3_OBJECT_KEY,
+            Body="Test data",
+            StorageClass="STANDARD",
+            **s3_put_object_encryption_kwargs,
+        )
+    except Exception as misc_exception:  # pylint: disable=broad-exception-caught
+        response = misc_exception
+    else:
+        s3_delete_object(s3_bucket_name)
+        # No normal error expected; ignore response
+    return response
+
+
+def s3_put_bucket_abac(s3_bucket_name, enable_abac):
+    """Enable or disable ABAC for an S3 bucket, return response or exception
+
+    As of 2026-04, the Lambda Python 3.14 runtime bundles boto3 v1.40.4
+    (2025-08-06), which predates the introduction of attribute-based access
+    control for S3 buckets (2025-11-20). Rather than require users to build a
+    Lambda bundle, and give up AWS's secure, automatic patching, I use
+    CloudControl temporarily.
+
+    https://github.com/boto/botocore/releases/tag/1.40.4
+    https://aws.amazon.com/about-aws/whats-new/2025/11/amazon-s3-attribute-based-access-control
+    https://docs.aws.amazon.com/lambda/latest/dg/runtimes-update.html#runtime-management-controls
+    https://docs.aws.amazon.com/cloudcontrolapi/latest/userguide/resource-operations-update.html
+    """
+    request_token = ""
+    try:
+        # For future use (and reduce TesterLambdaFnRole permissions):
+        # response = get_aws_client("s3").put_bucket_abac(
+        #     Bucket=s3_bucket_name,
+        #     AbacStatus={
+        #         "Status": "Enabled" if enable_abac else "Disabled"
+        #     }
+        # )
+
+        response = get_aws_client("cloudcontrol").update_resource(
+            TypeName="AWS::S3::Bucket",
+            Identifier=s3_bucket_name,
+            PatchDocument=json.dumps([{
+                "op": "replace",
+                "path": "AbacStatus",
+                "value": "Enabled" if enable_abac else "Disabled"
+            }])
+        )
+        request_token = (
+            response.get("ProgressEvent", {}).get("RequestToken", "")
+        )
+        waiter = get_aws_client("cloudcontrol").get_waiter(
+            "resource_request_success"
+        )
+        waiter.wait(
+            RequestToken=request_token,
+            WaiterConfig={
+                "Delay": 5,  # Seconds
+                "MaxAttempts": 18  # 5 * 18 = 45 seconds; note Lambda Timeout
+            }
+        )
+    except botocore.exceptions.WaiterError as waiter_exception:
+        if (
+            "Waiter encountered a terminal failure state"
+            not in str(waiter_exception)
+        ):
+            raise
+    # No other normal errors expected
+
+    return get_aws_client("cloudcontrol").get_resource_request_status(
+        RequestToken=request_token
+    )  # No normal error expected
+
+
+def s3_tag_untag_resource(kwargs_base, tag_key, tag_value=None):
+    """Tag or untag (no input value) S3 resource, return response or exception
+    """
+    try:
+        if tag_value is None:
+            response = get_aws_client("s3control").untag_resource(
+                **kwargs_base,
+                TagKeys=[
+                    tag_key,
+                ]
+            )
+        else:
+            response = get_aws_client("s3control").tag_resource(
+                **kwargs_base,
+                Tags=[
+                    {
+                        "Key": tag_key,
+                        "Value": tag_value
+                    },
+                ]
+            )
+    except Exception as misc_exception:  # pylint: disable=broad-exception-caught
+        response = misc_exception
+    return response
+
+
+def s3_tag_untag_bucket(s3_bucket_name, tag_key, tag_value=None):
+    """Tag or untag an S3 bucket, return response or exception
+    """
+    kwargs_base = {
+        "AccountId": ENV["AWS_ACCOUNT_ID"],
+        "ResourceArn": f"arn:{ENV["AWS_PARTITION"]}:s3:::{s3_bucket_name}",
+    }
+    if tag_value is not None:
+        response = s3_tag_untag_resource(kwargs_base, tag_key, tag_value)
+    if (tag_value is None) or not isinstance(response, Exception):
+        # Successful tagging response, if any, is discarded
+        response = s3_tag_untag_resource(kwargs_base, tag_key)
+    return response
+
+
+def assess_boto3_response_for_deny(response):
+    """Take a boto3 response or exception, return flags: Deny, Deny from RCP
+    """
+    error_message = ""
+    if isinstance(response, Exception):
+        deny = True
+        if isinstance(response, botocore.exceptions.ClientError):
+            error_message = getattr(
+                response, "response", {}
+            ).get("Error", {}).get("Message", "")
+    elif "ProgressEvent" in response:
+        cloudcontrol_progress = response["ProgressEvent"]
+        # pylint: disable=superfluous-parens
+        deny = (cloudcontrol_progress.get("OperationStatus", "") == "FAILED")
+        # pylint: enable=superfluous-parens
+        if deny:
+            error_message = cloudcontrol_progress.get("StatusMessage", "")
+    else:
+        deny = False
+    return (
+        deny,
+        ("explicit deny in a resource control policy" in error_message)
+        or not deny
+    )
+
+
+def label_result(result_dict):
+    """Take test result dict, replace "number" with "test_number": "TEST-N+.N"
+
+    Missing "number" key is an unexpected error.
+    """
+    result_dict["test_number"] = f"TEST-{result_dict["number"]:.1f}"
+    del result_dict["number"]
+    return result_dict
+
+
+def assess_boto3_response(
+    method_tested, expected_allow, response, result_dict
+):
+    """Take test info., expectation, result; assess, update result, and log
+    """
+    (deny, rcp_was_cause_if_deny) = assess_boto3_response_for_deny(response)
+    allow = not deny
+    result_dict.update({
+        "allow": allow,
+        "pass": (expected_allow == allow) and rcp_was_cause_if_deny,
+    })
+    if not result_dict["pass"]:
+        result_dict.update({
+            "error":
+                "Allow was expected"
+                if expected_allow else
+                "Deny was expected"
+                if rcp_was_cause_if_deny else
+                "Deny from RCP was expected",
+        })
+        if not rcp_was_cause_if_deny:
+            result_dict.update({
+                "check_cause": response,
+        })
+    log(f"{method_tested}_TEST_RESULT", label_result(result_dict))
+
+
+def extract_s3_bucket_traits(event):
+    """Take bucket name, return dict of bucket's traits
+    """
+    s3_bucket_name = event["s3_bucket_name"]
+    s3_bucket_traits = s3_bucket_name.removesuffix(
+        ENV["S3_BUCKET_CONSTANT_NAME_SUFFIX"]
+    ).removeprefix(
+        ENV["S3_BUCKET_CONSTANT_NAME_PREFIX"]
+    ).split("-")
+    s3_bucket = {
+        "number": int(s3_bucket_traits[0]),
+        "s3_bucket_name": s3_bucket_name,
+
+        "kms_encryption_bucket_tag": "tag" in s3_bucket_traits,
+        "abac": "abac" in s3_bucket_traits,
+
+        "default_kms_encryption": "default" in s3_bucket_traits,
+    }
+    if s3_bucket["kms_encryption_bucket_tag"]:
+        s3_bucket.update({
+            "kms_key_in_bucket_tag_identified_by":
+                "kms_key_id"
+                if "id" in s3_bucket_traits else
+                "kms_key_partial_arn"
+                if "partial" in s3_bucket_traits else
+                "kms_key_arn",
+            "wrong_kms_key_in_bucket_tag": "wrong" in s3_bucket_traits,
+        })
+    return s3_bucket
+
+
+def assess_s3_put_object_response(s3_bucket, kms_key_in_request):
+    """Take S3 bucket dict, KMS key; test PutObject, log result
+    """
+    response = s3_put_object(s3_bucket["s3_bucket_name"], kms_key_in_request)
+    result_dict = s3_bucket | {  # Copy dict, then update
+        "number": s3_bucket["number"] + 0.1 * int(bool(kms_key_in_request)),
+        "kms_key_in_request": kms_key_in_request,
+    }
+    expected_allow = (
+        # Order matters. Processing stops at first True condition
+        # (short-circuit), and later conditions are not evaluated.
+        # "wrong_kms_key_in_bucket_tag" will not be evaluated unless
+        # certainly present.
+
+        not(s3_bucket["abac"])
+
+        or not(s3_bucket["kms_encryption_bucket_tag"])
+
+        or (
+            s3_bucket["default_kms_encryption"]
+            and not s3_bucket["wrong_kms_key_in_bucket_tag"]
+        )
+
+        or (
+            bool(kms_key_in_request)
+            and not s3_bucket["wrong_kms_key_in_bucket_tag"]
+        )
+    )
+    assess_boto3_response(
+        "S3_PUT_OBJECT", expected_allow, response, result_dict
+    )
+
+
+def assess_s3_put_bucket_abac_response(
+    s3_bucket, test_number_fraction, enable_abac, expected_allow=True
+):
+    """Take S3 bucket dict; test PutBucketAbac, log result
+    """
+    response = s3_put_bucket_abac(s3_bucket["s3_bucket_name"], enable_abac)
+    result_dict = s3_bucket | {  # Copy dict, then update
+        "number": s3_bucket["number"] + test_number_fraction,
+        "enable_abac": enable_abac,
+    }
+    assess_boto3_response(
+        "S3_PUT_BUCKET_ABAC", expected_allow, response, result_dict
+    )
+
+
+def assess_s3_tag_bucket_response(
+    s3_bucket,
+    test_number_fraction,
+    tag_value,
+    tag_key=ENV["S3_BUCKET_TAG_KEY"],
+    expected_allow=True
+):
+    """Take S3 bucket dict, tag value; test TagResource, log result
+    """
+    response = s3_tag_untag_bucket(
+        s3_bucket["s3_bucket_name"], tag_key, tag_value
+    )
+    result_dict = s3_bucket | {  # Copy dict, then update
+        "number": s3_bucket["number"] + test_number_fraction,
+        "tag_key": tag_key,
+        "tag_value": tag_value,
+    }
+    assess_boto3_response(
+        "S3_TAG_UNTAG_RESOURCE", expected_allow, response, result_dict
+    )
+
+
+def test_s3_tag_abac_bucket(s3_bucket):
+    """Take S3 bucket dict for ABAC-enabled bucket; test TagResource
+    """
+    assess_s3_tag_bucket_response(
+        s3_bucket, 0.2, "", tag_key="non-protected-tag-key"
+    )
+    assess_s3_tag_bucket_response(
+        s3_bucket, 0.3, "Wrong format for a KMS key", expected_allow=False
+    )
+    for args in (
+        (0.4, ENV["KMS_KEY_ID"]),
+        (0.5, ENV["KMS_KEY_PARTIAL_ARN"]),
+        (0.6, ENV["KMS_KEY_ARN"]),
+    ):
+        assess_s3_tag_bucket_response(s3_bucket, *args)
+
+
+def lambda_handler(event, context):  # pylint: disable=unused-argument
+    """Take event (S3 bucket name); test, and log results
+    """
+    s3_bucket = extract_s3_bucket_traits(event)
+    for kms_key_in_request in ["", ENV["KMS_KEY_ARN"]]:
+        assess_s3_put_object_response(s3_bucket, kms_key_in_request)
+
+    match s3_bucket["number"]:
+
+        case 1:
+            assess_s3_put_bucket_abac_response(s3_bucket, 0.2, True)
+            assess_s3_put_bucket_abac_response(s3_bucket, 0.3, False)
+
+            # TEST-1.3 passes in spite of the optional SCP! CloudControl
+            # treats disabling ABAC as a success (idempotence?) if ABAC
+            # was already disabled.
+
+        case 3:
+            test_s3_tag_abac_bucket(s3_bucket)
+
+        case 5:
+            assess_s3_put_bucket_abac_response(
+                s3_bucket, 0.2, False, expected_allow=False
+            )

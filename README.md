@@ -30,31 +30,30 @@ Jump to:
     for an S3 bucket.
 
     <details>
-      <summary>Old bucket? Old scripts/code?</summary>
+      <summary>Old bucket? Old code/scripts?</summary>
 
     ---
 
-    _Writing_ bucket tags will require new permissions, and the use of new
-    commands/API methods, after you enable ABAC for the bucket.
+    Update code or scripts that _write_ bucket tags. The permissions and the
+    commands/API methods will change after you enable ABAC for the bucket.
 
-    - [`TagResource`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_control_TagResource.html)
-      and
+    - Replace `DeleteBucketTagging` (only a method, not a permission) and
+      `PutBucketTagging` with
       [`UntagResource`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_control_UntagResource.html)
-      replace
-      `PutBucketTagging`&nbsp;.
-    - `UntagResource` replaces `DeleteBucketTagging`&nbsp;, a method that
-      required `PutBucketTagging` permission.
-    - `s3control` is the service for the new methods, in the AWS API, SDKs, and
-      CLI.
+      and
+      [`TagResource`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_control_TagResource.html)&nbsp;. To delete tags, list their tag keys
+      explicitly in a call to `UntagResource`&nbsp;.
+    - `s3control` is the service for the new methods.
     - `s3:` remains the service prefix in
       [permission policies](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-TagResource).
-    - [`arn:aws:s3:::*`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-bucket)
-      is the `Resource`&nbsp;, if you want to manage bucket tags only. The new
-      permissions and methods cover other resource types, but not S3 objects,
-      so the `*` wildcard at the end of the bucket ARN pattern will not create
-      ambiguity. Change `aws` if you work in a different partition.
-    - [`ListTagsForResource`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_control_ListTagsForResource.html)
-      is the optional replacement for `GetBucketTagging`&nbsp;.
+    - Replace `*` (if you used it) with
+      [`arn:aws:s3:::*`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-bucket)
+      to write tags on buckets only. The new permissions and methods cover
+      other resource types, but not objects _in_ buckets, so the `*` wildcard
+      at the end of the bucket ARN pattern will not add ambiguity. Change `aws`
+      if your partition differs.
+    - Optional: Replace `GetBucketTagging` with
+      [`ListTagsForResource`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_control_ListTagsForResource.html)&nbsp;.
 
     ---
 
@@ -66,12 +65,18 @@ Jump to:
     |---:|:---|
     |Bucket Tag Value (Sample)|`arn:aws:kms:us-east-1:112233445566:`<br/>`key/0123abcd-45ef-67ab-89cd-012345efabcd`|
 
-    Now, KMS encryption is required whenever a new object or object version is
-    created, or an object is overwritten.
+    Now, encryption with this KMS key is required whenever a new object or
+    object version is created, or an object is overwritten.
+
+    Existing objects or object versions are not affected.
 
  3. Optionally, specify `aws:kms` and the same KMS key, in the bucket's
     [default encryption configuration](https://docs.aws.amazon.com/AmazonS3/latest/userguide/default-bucket-encryption.html#:~:text=Changes,before%20enabling%20default%20encryption).
     Users won't have to specify the KMS key.
+
+    For security, this solution requires a specific KMS key. S3 default
+    encryption also allows a KMS key alias, a less secure configuration that is
+    not compatible.
 
 #### Check the Rules
 
@@ -106,10 +111,22 @@ Limit
 [replica regions](https://docs.aws.amazon.com/kms/latest/developerguide/multi-region-keys-auth.html#mrk-auth-replicate)
 until you need replica keys in other regions._
 
-&cross; A KMS key alias cannot be used here.
+&cross; A KMS key alias cannot be used in the bucket tag value. For security,
+this solution requires a specific KMS key.
 
-&check; The KMS key must be in the same AWS account as the S3 bucket, unless
-the KMS key's account number is in the bucket tag value.
+&check; KMS key partial ARNs are a convenience feature of this solution, meant
+to simplify multi-region infrastructure-as-code templates. They are allowed
+only in the bucket tag value. In all other contexts, add the region to compose
+the KMS key full ARN.
+
+&check; This solution requires that the KMS key be in the same AWS account as
+the S3 bucket, unless the KMS key's account number is in the bucket tag value.
+
+&check; The AWS-managed `aws/s3` KMS key can never be used outside its own
+region and AWS account. If you put the KMS key full ARN or the KMS key ID of
+the AWS-managed KMS key in the bucket tag, this solution requires that the S3
+bucket, the AWS-managed KMS key, and all requesters be in the same region and
+AWS account.
 
 ---
 
@@ -124,10 +141,9 @@ the KMS key's account number is in the bucket tag value.
 [default encryption configuration](https://docs.aws.amazon.com/AmazonS3/latest/userguide/default-bucket-encryption.html#:~:text=Changes,before%20enabling%20default%20encryption),
 if set, must specify `aws:kms` and the same KMS key. For uniformity, this
 solution does not allow ~`aws:kms:dsse`~
-[_dual-layer_ KMS encryption](https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingDSSEncryption.html). KMS key partial ARNs are a convenience of this
-solution, meant to simplify multi-region infrastructure-as-code. S3 does not
-allow them in the default encryption configuration; compose the full ARN. A KMS
-key alias in the default encryption configuration can lead to errors.
+[_dual-layer_ KMS encryption](https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingDSSEncryption.html).
+For security, this solution requires a specific KMS key and is not compatible
+with a KMS key alias in the default encryption configuration.
 
 &check; The
 [S3 Bucket Keys](https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucket-key.html)
@@ -143,9 +159,9 @@ especially if the S3 bucket was created before May,&nbsp;2026.
 to a correctly-formatted value, and you must remove the bucket tag before you
 can disable ABAC.
 
-_Security recommendation: Block routine use of KMS keys housed in AWS accounts
-that are outside your organization. Consider a service control policy statement
-with an
+_Security recommendation: Default to blocking key usage if a KMS key is in an
+AWS account outside your organization. Consider a service control policy
+statement with an
 [`aws:ResourceOrgID`](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_condition-keys.html#condition-keys-resourceorgid)
 condition._
 
@@ -187,16 +203,23 @@ to specify `aws:kms` and the KMS key, when creating objects.
 
 <br/>
 
-&check; The KMS key must be in the same region as the S3 bucket.
-
 &check; The KMS key specified in the `PutObject` request or in the bucket's
 default encryption configuration must be the KMS key designated by the
 `security-s3-require-encryption-kms-key-arn` bucket tag value.
+
+&check; The KMS key, the S3 bucket, and the requester must be in the same
+region.
 
 &check; The requester must be in the same AWS account as the KMS key and the
 S3 bucket if a KMS key ID (or a KMS alias name) with no account number is
 specified in the `PutObject` request or in the bucket's default encryption
 configuration.
+
+&check; The AWS-managed `aws/s3` KMS key can never be used outside its own
+region and AWS account. If you put the KMS key full ARN or the KMS key ID of
+the AWS-managed KMS key in the bucket tag, this solution requires that the S3
+bucket, the AWS-managed KMS key, and the requester be in the same region and
+AWS account.
 
 _* Security recommendation: Create KMS keys in a separate AWS account with no
 other resources. This is the only way, given the default
@@ -511,7 +534,6 @@ test commands. Manual testing is a good way to learn about modern (2025 and
 and
 [account-regional bucket namespaces](https://aws.amazon.com/about-aws/whats-new/2026/03/amazon-s3-account-regional-namespaces).
 
-
 <details>
   <summary>Manual test commands...</summary>
 
@@ -662,8 +684,8 @@ and
     - Fill in the KMS key ARN. If KMS encryption has already been used with S3
       in this AWS account and region, you can view the AWS-managed
       [`aws/s3`](https://console.aws.amazon.com/kms/home#/kms/defaultKeys)
-      key and copy its ARN. (KMS key aliases won't work in bucket tag values,
-      because they don't work in policies.)
+      key and copy the KMS key ARN. (This solution does not allow a KMS key
+      alias in the bucket tag value.)
     - Because this is for temporary use during testing, I do not provide a
       Terraform alternative.
     - Trouble creating the stack usually signals a local permissions problem,

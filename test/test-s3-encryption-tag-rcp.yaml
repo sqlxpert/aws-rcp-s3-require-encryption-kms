@@ -399,10 +399,10 @@ Resources:
                   - !If [ KmsKeySameAccount, !Ref S3Bucket09AbacTagId, !Ref AWS::NoValue ]
                   - !If [ KmsKeySameAccount, !Ref S3Bucket10AbacTagIdWrong, !Ref AWS::NoValue ]
       Handler: index.lambda_handler
-      Code:
+      Code:  # test_director_rcp_scp.py
         ZipFile: |
           #!/usr/bin/env python3
-          """Resource control policy test director for
+          """Test director for
 
           github.com/sqlxpert/aws-rcp-s3-require-encryption-kms
           GPLv3, Copyright Paul Marcelin
@@ -491,7 +491,7 @@ Resources:
           # arn:aws:kms:us-east-1:112233445566:key/0123abcd-45ef-67ab-89cd-012345efabcd
           #   0   1   2         3            4                                        5
       Handler: index.lambda_handler
-      Code:
+      Code:  # tester_rcp.py
         ZipFile: |
           #!/usr/bin/env python3
           """Resource control policy tester for

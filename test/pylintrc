@@ -8,7 +8,12 @@ load-plugins=pylint.extensions.no_self_use
 
 [MESSAGES CONTROL]
 
-disable=fixme,locally-disabled
+disable=fixme,locally-disabled,duplicate-code
+
+# duplicate-code
+# Special case when multiple files, similar because the priority is simple
+# AWS Lambda packaging, are evaluated together
+# https://github.com/pylint-dev/pylint/issues/214
 
 [REPORTS]
 

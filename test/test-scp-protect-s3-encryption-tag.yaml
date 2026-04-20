@@ -258,10 +258,10 @@ Resources:
                   - !Ref S3Bucket03Abac
                   - !Ref S3Bucket05AbacTag
       Handler: index.lambda_handler
-      Code:
+      Code:  # test_director_rcp_scp.py
         ZipFile: |
           #!/usr/bin/env python3
-          """Service control policy test director for
+          """Test director for
 
           github.com/sqlxpert/aws-rcp-s3-require-encryption-kms
           GPLv3, Copyright Paul Marcelin
@@ -347,7 +347,7 @@ Resources:
           # an idiomatic way to convert true and false literals to Boolean
           # values.
       Handler: index.lambda_handler
-      Code:
+      Code:  # tester_scp.py
         ZipFile: |
           #!/usr/bin/env python3
           """Service control policy tester for

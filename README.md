@@ -163,13 +163,13 @@ to specify `aws:kms` and the KMS key, when creating objects.
 
 |Command or API&nbsp;Method|Option, Parameter, or Header|Input Value|
 |:---|---:|:---:|
-|`aws s3 cp`|`--sse`|`'aws:kms'`|
+|[`aws s3 cp`](https://docs.aws.amazon.com/cli/latest/reference/s3/cp.html)|`--sse`|`'aws:kms'`|
 ||`--sse-kms-key-id`|&#8675;|
-|`aws s3api put-object`|`--server-side-encryption`|`'aws:kms'`|
+|[`aws s3api put-object`](https://docs.aws.amazon.com/cli/latest/reference/s3api/put-object.html)|`--server-side-encryption`|`'aws:kms'`|
 ||`--ssekms-key-id`|&#8675;|
-|`client("s3").put_object()`<br/>or equivalent in a different AWS&nbsp;SDK|`ServerSideEncryption=`|`"aws:kms"`|
+|`client("s3").`[`put_object()`](https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/put_object.html)<br/>or equivalent in a different AWS&nbsp;SDK|`ServerSideEncryption=`|`"aws:kms"`|
 ||`SSEKMSKeyId=`|&#8675;|
-|`PutObject`|`x-amz-server-side-encryption:`|`aws:kms`|
+|[`PutObject`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html)|`x-amz-server-side-encryption:`|`aws:kms`|
 ||`x-amz-server-side-encryption-aws-kms-key-id:`|&#8675;|
 
 <br/>

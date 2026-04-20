@@ -41,7 +41,7 @@ Jump to:
       and
       [`UntagResource`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_control_UntagResource.html)
       replace
-      `PutBucketTagging`&nbsp;. All three are permissions as well as methods.
+      `PutBucketTagging`&nbsp;.
     - `UntagResource` replaces `DeleteBucketTagging`&nbsp;, a method that
       required `PutBucketTagging` permission.
     - `s3control` is the service for the new methods, in the AWS API, SDKs, and
@@ -54,8 +54,7 @@ Jump to:
       so the `*` wildcard at the end of the bucket ARN pattern will not create
       ambiguity. Change `aws` if you work in a different partition.
     - [`ListTagsForResource`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_control_ListTagsForResource.html)
-      is the optional replacement for `GetBucketTagging`&nbsp;. Both are
-      permissions as well as methods.
+      is the optional replacement for `GetBucketTagging`&nbsp;.
 
     ---
 
@@ -656,7 +655,7 @@ and
 
  2. [Create a CloudFormation stack](https://console.aws.amazon.com/cloudformation/home?#/stacks/create)
     from
-    [test/test-rcp-s3-encryption-tags.yaml](/../../blob/main/test/test-s3-encryption-tag-rcp.yaml?raw=true)&nbsp;.
+    [test/test-s3-encryption-tag-rcp.yaml](/../../blob/main/test/test-s3-encryption-tag-rcp.yaml?raw=true)&nbsp;.
 
     - Copy and paste the **suggested stack name. Do not change it.** Creating
       more than one stack from this template is not supported.
@@ -716,12 +715,15 @@ and
       ("Stack actions" &rarr; "Detect drift", then "Stack actions" &rarr;
       "View drift results").
 
- 6. When you are finished, delete the CloudFormation stack.
+ 6. When you are finished, delete the
+    [Test](https://console.aws.amazon.com/cloudformation/home#/stacks?filteringText=TestRcpS3EncryptionTag&filteringStatus=active&viewNested=true)
+    CloudFormation stack.
 
     - If there was an unexpected error, you might first have to delete all
-      objects from the test S3 buckets listed in the
-      [Test](https://console.aws.amazon.com/cloudformation/home#/stacks?filteringText=TestRcpS3EncryptionTag&filteringStatus=active&viewNested=true)
-      CloudFormation stack's "Resources" tab.
+      objects from the S3 buckets listed in the stack's "Resources" tab.
+
+ 7. Continue with
+    [Step 5 of the _installation_ instructions](#install-step-5-context).
 
 </details>
 
@@ -750,10 +752,9 @@ Differences to note:
   main CloudFormation stack or Terraform module. (Make these changes in your
   AWS&nbsp;Organizations management account.)
 - The direct AWS Console links for **S**CP testing are:
-  - [TestDirector Lambda function](https://aws.amazon.com/lambda/home#/functions/TestScpProtectS3EncryptionTagTestDirector?tab=testing)
+  - [TestDirector Lambda function](https://console.aws.amazon.com/lambda/home#/functions/TestScpProtectS3EncryptionTagTestDirector?tab=testing)
   - [Log group - all events](https://console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/TestScpProtectS3EncryptionTag/log-events)
-  - [Log group - list of log streams](
-https:/console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/TestScpProtectS3EncryptionTag)
+  - [Log group - list of log streams](https://console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/TestScpProtectS3EncryptionTag)
   - [CloudFormation stack](https://console.aws.amazon.com/cloudformation/home#/stacks?filteringText=TestScpProtectS3EncryptionTag&filteringStatus=active&viewNested=true)
 - Only three S3 buckets are needed to test the **S**CP. These correspond to
   buckets 1, 3 (ABAC) and 5 (ABAC + bucket tag) in the RCP test stack. Because
@@ -764,8 +765,8 @@ https:/console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/TestSc
   SCP test CloudFormation stack, changing `ScpOn` to `true`&nbsp;. Re-attach
   the **S**CP to the AWS account containing the CloudFormation stack. (Advanced
   users, revert to the original `ScpPrincipalCondition` /
-  `scp_principal_condition` value in the main CloudFormation stack or Terraform
-  module.) Repeat the testing process.
+  `scp_principal_condition` value, in the main CloudFormation stack or
+  Terraform module.) Repeat the testing process.
 
 </details>
 

@@ -695,8 +695,10 @@ Resources:
                           s3_bucket, 0.6, False, expected_allow=SCP_OFF
                       )
                       assess_s3_put_bucket_abac_response(
-                          s3_bucket, 0.7, True, expected_allow=SCP_OFF
+                          s3_bucket, 0.7, True, expected_allow=True
                       )
+
+                      # TEST-3.7 passes in spite of the SCP! See above.
 
                   case 5:
                       assess_s3_tag_bucket_response(

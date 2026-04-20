@@ -419,6 +419,15 @@ Resources:
         is enabled, they cannot add/change/remove ${S3BucketTagKey} bucket tag.
         GPLv3, Copyright Paul Marcelin. github.com/sqlxpert
       TargetIds: !If [ EnableScpTrue, !Ref ScpTargetIds, !Ref AWS::NoValue ]
+
+      # "TagResource", "UntagResource": The SCP cannot regulate bucket tagging
+      # operations on buckets for which attribute-based access control is
+      # disabled. The old s3:PutBucketTagging permission does not allow
+      # selective regulation of the old PutBucketTagging and
+      # DeleteBucketTagging API methods.
+      # https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-PutBucketTagging
+      # https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketTagging.html
+      # https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketTagging.html
       Content: !Sub
         - >-
           {
@@ -462,7 +471,8 @@ Outputs:
 
   RcpS3BucketRequireEncryptionArn:
     Description: >-
-      ARN of resource control policy requiring KMS encryption for tagged S3 buckets
+      ARN of resource control policy requiring KMS encryption for tagged S3
+      buckets
     Value: !GetAtt RcpS3BucketRequireEncryption.Arn
   RcpS3BucketRequireEncryptionId:
     Description: >-

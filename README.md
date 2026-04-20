@@ -25,18 +25,39 @@ Jump to:
 
 ### Tag a Bucket
 
- 1. Turn on
-    [attribute-based access control](https://docs.aws.amazon.com/AmazonS3/latest/userguide/buckets-tagging-enable-abac.html)
+ 1. Enable
+    [attribute-based access control](https://docs.aws.amazon.com/AmazonS3/latest/userguide/buckets-tagging-enable-abac.html#bucket-tag-add-steps)
     for an S3 bucket.
 
     <details>
-      <summary>Old bucket? Old code/scripts?</summary>
+      <summary>Old bucket? Old scripts/code?</summary>
 
-    <br/>
+    ---
 
-    If the bucket was already in use, or if it is new but will be used with old
-    code or scripts, be aware of the new commands/APImethods and permissions
-    required for S3 bucket tagging after you enable ABAC for the bucket.
+    _Writing_ bucket tags will require new permissions, and the use of new
+    commands/API methods, after you enable ABAC for the bucket.
+
+    - [`TagResource`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_control_TagResource.html)
+      and
+      [`UntagResource`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_control_UntagResource.html)
+      replace
+      `PutBucketTagging`&nbsp;. All three are permissions as well as methods.
+    - `UntagResource` replaces `DeleteBucketTagging`&nbsp;, a method that
+      required `PutBucketTagging` permission.
+    - `s3control` is the service for the new methods, in the AWS API, SDKs, and
+      CLI.
+    - `s3:` remains the service prefix in
+      [permission policies](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-TagResource).
+    - [`arn:aws:s3:::*`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-bucket)
+      is the `Resource`&nbsp;, if you want to manage bucket tags only. The new
+      permissions and methods cover other resource types, but not S3 objects,
+      so the `*` wildcard at the end of the bucket ARN pattern will not create
+      ambiguity. Change `aws` if you work in a different partition.
+    - [`ListTagsForResource`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_control_ListTagsForResource.html)
+      is the optional replacement for `GetBucketTagging`&nbsp;. Both are
+      permissions as well as methods.
+
+    ---
 
     </details>
 
@@ -60,14 +81,16 @@ Jump to:
 
 <br/>
 
-&check; Attribute-based access control must be enabled for the S3 bucket.
+&check;
+[Attribute-based access control](https://docs.aws.amazon.com/AmazonS3/latest/userguide/buckets-tagging-enable-abac.html)
+must be enabled for the S3 bucket.
 
 <details>
   <summary>Different ways to designate the KMS key...</summary>
 
 ---
 
-|Identifier|Bucket Tag Value (Sample)|
+|KMS Key Identifier|Bucket Tag Value (Sample)|
 |:---|:---|
 |KMS&nbsp;key&nbsp;full&nbsp;ARN|`arn:aws:kms:us-east-1:`<br/>`112233445566:key/0123abcd-45ef-67ab-89cd-012345efabcd`|
 ||`arn:aws:kms:us-east-1:`<br/>`112233445566:key/mrk-01ab23cd45ef67ab89cd01ef23ab45cd` *|
@@ -84,7 +107,7 @@ Limit
 [replica regions](https://docs.aws.amazon.com/kms/latest/developerguide/multi-region-keys-auth.html#mrk-auth-replicate)
 until you need replica keys in other regions._
 
-&check; A KMS key alias cannot be used here.
+&cross; A KMS key alias cannot be used here.
 
 &check; The KMS key must be in the same AWS account as the S3 bucket, unless
 the KMS key's account number is in the bucket tag value.
@@ -95,18 +118,22 @@ the KMS key's account number is in the bucket tag value.
 
 &check; The KMS key must be in the same region as the S3 bucket.
 
-&check; Users' and roles' permissions and/or the KMS key policy must allow
+&check; IAM role permissions and/or the KMS key policy must allow
 [usage of the KMS key](https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingKMSEncryption.html#:~:text=Permissions).
 
-&check; The S3 bucket's default encryption configuration, if set, must specify
-`aws:kms` and designate the same KMS key. (For uniformity, ~`aws:kms:dsse`~
-[_dual-layer_ KMS encryption](https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingDSSEncryption.html)
-is not allowed.)
+&check; The S3 bucket's
+[default encryption configuration](https://docs.aws.amazon.com/AmazonS3/latest/userguide/default-bucket-encryption.html#:~:text=Changes,before%20enabling%20default%20encryption),
+if set, must specify `aws:kms` and the same KMS key. For uniformity, this
+solution does not allow ~`aws:kms:dsse`~
+[_dual-layer_ KMS encryption](https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingDSSEncryption.html). KMS key partial ARNs are a convenience of this
+solution, meant to simplify multi-region infrastructure-as-code. S3 does not
+allow them in the default encryption configuration; compose the full ARN. A KMS
+key alias in the default encryption configuration can lead to errors.
 
 &check; The
 [S3 Bucket Keys](https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucket-key.html)
 setting, if configured, must reference the same KMS key. _Cost-saving
-recommendation: Use this feature to reduce KMS API charges._
+recommendation: Set the S3 Bucket Key to reduce KMS API charges._
 
 &check; SSE-C-encrypted objects can't be created if ABAC is enabled and the
 bucket is tagged. Also check that
@@ -148,9 +175,10 @@ to specify `aws:kms` and the KMS key, when creating objects.
 
 <br/>
 
-|Identifier|Sample Input Value &#8675;|
+|KMS Key Identifier|Sample Input Value &#8675;|
 |:---|:---|
 |KMS&nbsp;key&nbsp;full&nbsp;ARN|`arn:aws:kms:us-east-1:`<br/>`112233445566:key/0123abcd-45ef-67ab-89cd-012345efabcd` *|
+||`arn:aws:kms:us-east-1:`<br/>`112233445566:key/mrk-01ab23cd45ef67ab89cd01ef23ab45cd` *|
 |KMS&nbsp;key&nbsp;ID|`0123abcd-45ef-67ab-89cd-012345efabcd`|
 ||`mrk-01ab23cd45ef67ab89cd01ef23ab45cd`|
 |KMS&nbsp;key&nbsp;alias&nbsp;full&nbsp;ARN|`arn:aws:kms:us-east-1:`<br/>`112233445566:alias/alias_for_my_customer_managed_kms_key`|
@@ -173,7 +201,7 @@ configuration.
 
 _* Security recommendation: Create KMS keys in a separate AWS account with no
 other resources. This is the only way, given the default
-["Enable IAM User Permissions"](https://docs.aws.amazon.com/kms/latest/developerguide/key-policy-default.html#key-policy-default-allow-root-enable-iam)
+"[Enable IAM User Permissions](https://docs.aws.amazon.com/kms/latest/developerguide/key-policy-default.html#key-policy-default-allow-root-enable-iam)"
 statement, to be certain that the
 [KMS key policy](https://docs.aws.amazon.com/kms/latest/developerguide/iam-policies-best-practices.html#:~:text=Use%20key%20policies)
 controls all access._
@@ -191,8 +219,8 @@ in a tagged S3 bucket.
 `security-s3-require-encryption-kms-key-arn` bucket tag value and in the
 `PutObject` request does not resolve the error, review the
 [rules](#check-the-rules),
-check the user or role's permissions (identity-based policies), and check the
-KMS key policy (resource-based policy).
+check the IAM role's permissions (identity-based policies), and check the KMS
+key policy (resource-based policy).
 
 In case the user missed "require-encryption-kms-key-arn"... in the bucket tag
 key, or didn't check the bucket tag value to find the correct key, the error
@@ -478,11 +506,11 @@ the sister project,
 
 Although automated testing is the only practical way to cover the many cases
 that the RCP was designed to handle, I also recommend that you try the manual
-test commands. It turns out that manual testing is a good learning experience,
-a good way to experiment with modern (2025 and 2026) S3 features like
+test commands. Manual testing is a good way to learn about modern (2025 and
+2026) S3 features like
 [attribute-based access control](https://aws.amazon.com/about-aws/whats-new/2025/11/amazon-s3-attribute-based-access-control)
-and the
-[account-regional bucket namespace](https://aws.amazon.com/about-aws/whats-new/2026/03/amazon-s3-account-regional-namespaces).
+and
+[account-regional bucket namespaces](https://aws.amazon.com/about-aws/whats-new/2026/03/amazon-s3-account-regional-namespaces).
 
 
 <details>
@@ -683,7 +711,7 @@ and the
 
     - If there were timeouts, or errors changing bucket tags or the ABAC
       setting (decimal 2 through 9 in the test number), check the
-      [Test](https://console.aws.amazon.com/cloudformation/home#/stacks?filteringText=TestS3RequireEncryptionKms&filteringStatus=active&viewNested=true)
+      [Test](https://console.aws.amazon.com/cloudformation/home#/stacks?filteringText=TestRcpS3EncryptionTag&filteringStatus=active&viewNested=true)
       CloudFormation stack for drift and correct any drift before re-testing
       ("Stack actions" &rarr; "Detect drift", then "Stack actions" &rarr;
       "View drift results").
@@ -692,7 +720,7 @@ and the
 
     - If there was an unexpected error, you might first have to delete all
       objects from the test S3 buckets listed in the
-      [Test](https://console.aws.amazon.com/cloudformation/home#/stacks?filteringText=TestS3RequireEncryptionKms&filteringStatus=active&viewNested=true)
+      [Test](https://console.aws.amazon.com/cloudformation/home#/stacks?filteringText=TestRcpS3EncryptionTag&filteringStatus=active&viewNested=true)
       CloudFormation stack's "Resources" tab.
 
 </details>
@@ -726,6 +754,7 @@ Differences to note:
   - [Log group - all events](https://console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/TestScpProtectS3EncryptionTag/log-events)
   - [Log group - list of log streams](
 https:/console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/TestScpProtectS3EncryptionTag)
+  - [CloudFormation stack](https://console.aws.amazon.com/cloudformation/home#/stacks?filteringText=TestScpProtectS3EncryptionTag&filteringStatus=active&viewNested=true)
 - Only three S3 buckets are needed to test the **S**CP. These correspond to
   buckets 1, 3 (ABAC) and 5 (ABAC + bucket tag) in the RCP test stack. Because
   the SCP tests are simpler, decimal ranges identify similar operations: 0
@@ -734,10 +763,9 @@ https:/console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/TestSc
 - After testing _without_ the SCP, you must re-test _with_ the SCP. Update the
   SCP test CloudFormation stack, changing `ScpOn` to `true`&nbsp;. Re-attach
   the **S**CP to the AWS account containing the CloudFormation stack. (Advanced
-  users, remove the exemption for
-  `TestScpProtectS3EncryptionTag-TesterLambdaFnRole` from
-  `ScpPrincipalCondition` / `scp_principal_condition` in the main
-  CloudFormation stack or Terraform module.) Repeat the testing process.
+  users, revert to the original `ScpPrincipalCondition` /
+  `scp_principal_condition` value in the main CloudFormation stack or Terraform
+  module.) Repeat the testing process.
 
 </details>
 

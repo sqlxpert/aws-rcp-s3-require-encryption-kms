@@ -222,6 +222,9 @@ resource "aws_organizations_policy" "scp_s3_bucket_restrict_tag_and_abac_changes
   description = "S3 bucket: Matching IAM principals cannot enable/disable ABAC. If ABAC is enabled, they cannot add/change/remove ${var.s3_bucket_tag_key} bucket tag. GPLv3, Copyright Paul Marcelin. github.com/sqlxpert"
   tags        = local.rcp_scp_tags
 
+  # See comment under ScpS3BucketRestrictTagAndAbacChanges in
+  # ../cloudformation/aws-rcp-s3-require-encryption-kms.yaml
+
   # I prefer data.aws_iam_policy_document , but a HEREDOC allows source parity
   # with CloudFormation (except for variables) and permits insertion of values
   # that the user specifies in JSON (native for the IAM policy language):

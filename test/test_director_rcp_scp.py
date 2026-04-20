@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Resource control policy test director for
+"""Test director for
 
 github.com/sqlxpert/aws-rcp-s3-require-encryption-kms
 GPLv3, Copyright Paul Marcelin

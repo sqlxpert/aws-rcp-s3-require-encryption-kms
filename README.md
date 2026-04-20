@@ -406,7 +406,7 @@ indicates that...
 
       Select "Upload a template file", then select "Choose file" and navigate
       to a locally-saved copy of
-      [cloudformation/aws-rcp-s3-require-encryption-kms.yaml](/../../blob/main/cloudformation/aws-rcp-s3-require-encryption-kms.yaml?raw=true)
+      [cloudformation/aws-rcp-s3-require-encryption-kms.yaml](/../../blob/v1.0.0/cloudformation/aws-rcp-s3-require-encryption-kms.yaml?raw=true)
       [right-click to save as...].
 
       On the next page, set:
@@ -428,7 +428,7 @@ indicates that...
 
       ```terraform
       module "s3_require_encryption" {
-        source = "git::https://github.com/sqlxpert/aws-rcp-s3-require-encryption-kms.git//terraform?ref=main"
+        source = "git::https://github.com/sqlxpert/aws-rcp-s3-require-encryption-kms.git//terraform?ref=v1.0.0"
         # Reference a specific version from github.com/sqlxpert/aws-rcp-s3-require-encryption-kms/releases
         # Check that the release is immutable!
 
@@ -677,7 +677,7 @@ and
 
  2. [Create a CloudFormation stack](https://console.aws.amazon.com/cloudformation/home?#/stacks/create)
     from
-    [test/test-s3-encryption-tag-rcp.yaml](/../../blob/main/test/test-s3-encryption-tag-rcp.yaml?raw=true)&nbsp;.
+    [test/test-s3-encryption-tag-rcp.yaml](/../../blob/v1.0.0/test/test-s3-encryption-tag-rcp.yaml?raw=true)&nbsp;.
 
     - Copy and paste the **suggested stack name. Do not change it.** Creating
       more than one stack from this template is not supported.
@@ -765,7 +765,7 @@ Differences to note:
   **S**CP from the AWS account in which the stack will be created. (Make this
   change in your AWS&nbsp;Organizations management account.)
 - The **S**CP test CloudFormation template is
-  [test/test-scp-protect-s3-encryption-tag.yaml](/../../blob/main/test/test-scp-protect-s3-encryption-tag.yaml?raw=true)&nbsp;.
+  [test/test-scp-protect-s3-encryption-tag.yaml](/../../blob/v1.0.0/test/test-scp-protect-s3-encryption-tag.yaml?raw=true)&nbsp;.
   Set `ScpOn` to `false`&nbsp;.
 - If you are an advanced user, you can re-attach the **S**CP after creating the
   SCP test CloudFormation stack but before testing. For the first round of

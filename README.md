@@ -246,8 +246,10 @@ key policy (resource-based policy).
 
 In case the user missed "require-encryption-kms-key-arn"... in the bucket tag
 key, or didn't check the bucket tag value to find the correct key, the error
-message tells a local administrator where to look: "explicit deny in a resource
-control policy", for example.
+message tells a local administrator exactly where to look: "explicit deny in a
+resource control policy:
+arn:aws:organizations::112233445566:policy/o-abcdefghij/resource_control_policy/p-abcdefghij",
+for example.
 
 #### Error Messages
 
@@ -285,7 +287,8 @@ control policy", for example.
       ```text
       s3:PutObject
       on resource: "arn:aws:s3:::test-kms-encryption-required/non-encrypted.txt"
-      with an explicit deny in a resource control policy
+      with an explicit deny in a resource control policy:
+      arn:aws:organizations::112233445566:policy/o-abcdefghij/resource_control_policy/p-abcdefghij
       ```
 
     - Insufficient KMS key usage permissions
@@ -318,15 +321,15 @@ control policy", for example.
     User: arn:aws:sts::112233445566:assumed-role/AWSReservedSSO_PermSetName_0123456789abcdef/abcde
     is not authorized to perform: s3:PutBucketAbac on resource:
     "arn:aws:s3:::test-kms-encryption-required"
-    with an explicit deny in a resource control policy
+    with an explicit deny in a resource control policy:
+    arn:aws:organizations::112233445566:policy/o-abcdefghij/resource_control_policy/p-abcdefghij
     ```
 
     Remove the bucket tag first, then disable ABAC.
 
     If ABAC is enabled and a user tries to set or change the bucket tag to an
     incorrectly-formatted value, the error message is similar but the operation
-    is "TagResource". Use of one of the KMS key identifier formats listed in
-    the
+    is "TagResource". Use one of the KMS key identifier formats listed in the
     [rules](#check-the-rules),
     under "Different ways to designate the KMS key..."
 
